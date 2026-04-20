@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Pokémon Champions — Liga Peruana de VGC · Draft System</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Exo+2:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --gold:#C8951A;--gold-light:#F5C842;--gold-dark:#8B6200;
+  --red:#8B1A1A;--red-light:#C0392B;
+  --bg:#0A0A0F;--surface:#12121A;--surface2:#1A1A26;
+  --border:#2A2A40;--text:#E8E4D0;--muted:#888;
+}
+body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh}
+h1,h2,h3{font-family:'Cinzel',serif}
+.app{display:flex;flex-direction:column;min-height:100vh}
+.header{background:linear-gradient(135deg,#0A0A0F 0%,#1A0A00 50%,#0A0A0F 100%);border-bottom:2px solid var(--gold);padding:12px 20px;display:flex;align-items:center;gap:16px}
+.header-logo{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;background:#1A0800;font-size:22px}
+.header-title{flex:1}
+.header-title h1{font-size:18px;color:var(--gold-light);letter-spacing:1px}
+.header-title p{font-size:11px;color:var(--muted);margin-top:2px}
+.header-budget{text-align:right;font-size:11px;color:var(--muted)}
+.header-budget strong{display:block;font-size:16px;color:var(--gold-light);font-family:'Cinzel',serif}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:#888;display:inline-block;margin-right:4px}
+.conn-dot.online{background:#4CAF50;box-shadow:0 0 6px #4CAF50}
+.conn-dot.offline{background:#FF4444}
+.tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface)}
+.tab{padding:10px 18px;font-size:12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;font-family:'Cinzel',serif;letter-spacing:.5px}
+.tab.active{color:var(--gold-light);border-bottom-color:var(--gold)}
+.tab:hover:not(.active){color:var(--text)}
+.panel{display:none;flex:1;overflow:auto}
+.panel.active{display:flex;flex-direction:column}
+.auction-layout{display:grid;grid-template-columns:1fr 280px;gap:0;flex:1;min-height:0}
+@media(max-width:600px){.auction-layout{grid-template-columns:1fr}}
+.auction-main{padding:16px;overflow:auto;border-right:1px solid var(--border)}
+.auction-side{padding:16px;overflow:auto;background:var(--surface)}
+.current-player-card{background:linear-gradient(135deg,#1A1000,#120800);border:2px solid var(--gold);border-radius:12px;padding:20px;text-align:center;margin-bottom:16px}
+.player-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--gold-dark),var(--gold));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;margin:0 auto 12px;color:#0A0A00;font-family:'Cinzel',serif}
+.player-name{font-size:17px;font-weight:600;color:var(--gold-light);margin-bottom:4px;font-family:'Cinzel',serif}
+.player-number{font-size:11px;color:var(--muted);margin-bottom:12px}
+.current-bid{font-size:32px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif}
+.current-bid-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.bid-leader{font-size:12px;padding:4px 12px;background:#1A0800;border:1px solid var(--gold-dark);border-radius:20px;display:inline-block;color:var(--gold);margin-top:8px}
+.bid-controls{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px}
+.bid-controls h3{font-size:12px;color:var(--muted);margin-bottom:10px;letter-spacing:.5px}
+.bid-amounts{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.bid-btn{padding:8px 4px;background:#1A1000;border:1px solid var(--gold-dark);border-radius:6px;color:var(--gold-light);font-size:12px;cursor:pointer;transition:all .2s;font-family:'Exo 2',sans-serif}
+.bid-btn:hover{background:var(--gold-dark);color:#000}
+.bid-custom{display:flex;gap:8px;margin-bottom:10px}
+.bid-custom input{flex:1;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif}
+.bid-custom input:focus{outline:none;border-color:var(--gold)}
+.btn-primary{width:100%;padding:10px;background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:#000;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.5px;transition:all .2s}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed}
+.btn-secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px;font-family:'Exo 2',sans-serif}
+.btn-secondary:hover{border-color:var(--gold)}
+.timer-bar{height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-top:10px}
+.timer-fill{height:100%;background:linear-gradient(90deg,var(--gold-dark),var(--gold-light));transition:width 1s linear;border-radius:3px}
+.timer-fill.urgent{background:linear-gradient(90deg,#8B0000,#FF4444)}
+.bid-history{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.bid-history h3{font-size:11px;color:var(--muted);margin-bottom:8px;letter-spacing:.5px}
+.bid-entry{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px}
+.bid-entry:last-child{border-bottom:none}
+.bid-entry-amount{color:var(--gold-light);font-weight:600}
+.bid-entry-time{color:var(--muted);font-size:10px}
+.teams-mini{display:flex;flex-direction:column;gap:8px}
+.team-mini-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;transition:all .2s}
+.team-mini-card.active-team{border-color:var(--gold);background:#1A1000}
+.team-mini-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.team-mini-name{font-size:12px;font-weight:600;font-family:'Cinzel',serif}
+.team-mini-budget{font-size:12px;color:var(--gold-light);font-weight:600}
+.team-mini-bar{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.team-mini-fill{height:100%;border-radius:2px;transition:width .3s}
+.team-mini-players{font-size:10px;color:var(--muted);margin-top:4px}
+.no-auction{text-align:center;padding:40px 20px;color:var(--muted)}
+.no-auction .icon{font-size:48px;margin-bottom:12px}
+.no-auction p{font-size:13px;line-height:1.6}
+.admin-panel{padding:16px}
+.section-title{font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;letter-spacing:.5px;border-bottom:1px solid var(--border);padding-bottom:6px}
+.player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:16px}
+.player-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:4px}
+.player-card.sold{opacity:.5;border-style:dashed}
+.player-card.in-auction{border-color:var(--gold);background:#1A1000}
+.player-card-name{font-size:11px;font-weight:600;color:var(--text);line-height:1.3}
+.player-card-status{font-size:10px;padding:2px 6px;border-radius:10px;display:inline-block;align-self:flex-start}
+.status-available{background:#0A2A0A;color:#4CAF50;border:1px solid #1A4A1A}
+.status-sold{background:#1A0A0A;color:#888;border:1px solid #2A1A1A}
+.status-live{background:#2A1A00;color:var(--gold-light);border:1px solid var(--gold-dark)}
+.btn-start-auction{font-size:10px;padding:4px 8px;background:#1A1000;border:1px solid var(--gold-dark);color:var(--gold-light);border-radius:4px;cursor:pointer;font-family:'Exo 2',sans-serif;margin-top:4px;transition:all .2s}
+.btn-start-auction:hover{background:var(--gold-dark);color:#000}
+.roster-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.roster-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px}
+.roster-card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.roster-card-name{font-size:13px;font-weight:600;font-family:'Cinzel',serif}
+.roster-card-budget{font-size:12px;color:var(--gold-light)}
+.roster-player-list{display:flex;flex-direction:column;gap:4px}
+.roster-player{font-size:11px;padding:4px 8px;background:var(--bg);border-radius:4px;display:flex;justify-content:space-between;align-items:center;color:var(--text)}
+.roster-player-price{color:var(--gold-light);font-size:10px}
+.roster-empty{font-size:11px;color:var(--muted);text-align:center;padding:8px}
+.alert{padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:12px}
+.alert-info{background:#0A0A2A;border:1px solid #1A1A4A;color:#6699FF}
+.alert-warning{background:#2A1A00;border:1px solid var(--gold-dark);color:var(--gold-light)}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center}
+.stat-val{font-size:20px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:2px}
+.sold-banner{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,#0A0A00,#1A1200);border:3px solid var(--gold);border-radius:16px;padding:30px 40px;text-align:center;z-index:1000;display:none;min-width:300px}
+.sold-banner.show{display:block;animation:pop .3s ease}
+@keyframes pop{from{transform:translate(-50%,-50%) scale(.8);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}
+.sold-banner h2{font-family:'Cinzel',serif;font-size:28px;color:var(--gold-light);margin-bottom:8px}
+.sold-banner p{color:var(--text);font-size:14px}
+.sold-price{font-size:36px;color:var(--gold-light);font-family:'Cinzel',serif;margin:8px 0}
+.sold-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:none}
+.sold-overlay.show{display:block}
+.pw-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+.pw-card{background:var(--surface);border:2px solid var(--gold);border-radius:16px;padding:30px;text-align:center;max-width:360px;width:100%}
+.pw-card h2{font-family:'Cinzel',serif;color:var(--gold-light);margin-bottom:8px;font-size:18px}
+.pw-card p{color:var(--muted);font-size:12px;margin-bottom:16px}
+.pw-card input{width:100%;padding:10px;background:#0A0A0F;border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:14px;margin-bottom:10px;font-family:'Exo 2',sans-serif;text-align:center}
+.pw-card input:focus{outline:none;border-color:var(--gold)}
+.pw-error{color:#FF4444;font-size:11px;margin-top:6px;min-height:16px}
+.countdown{font-size:28px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif;text-align:center;margin:8px 0}
+.countdown.urgent{color:#FF4444;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.admin-controls{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:16px}
+.loading-screen p{color:var(--gold-light);font-family:'Cinzel',serif;font-size:14px}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="loading-screen" class="loading-screen">
+  <div style="font-size:48px">🏆</div>
+  <div class="spinner"></div>
+  <p>Conectando a la Liga...</p>
+</div>
+
+<div id="pw-screen" class="pw-screen" style="display:none">
+  <div class="pw-card">
+    <div style="font-size:36px;margin-bottom:12px">🏆</div>
+    <h2>Pokémon Champions</h2>
+    <p>Liga Peruana de VGC — Sistema de Pujas</p>
+    <input type="text" id="pw-input" placeholder="Nombre de equipo o 'admin'" autocomplete="off" />
+    <button class="btn-primary" onclick="handleLogin()">Ingresar</button>
+    <p id="pw-error" class="pw-error"></p>
+  </div>
+</div>
+
+<div id="main-app" class="app" style="display:none">
+  <div class="header">
+    <div class="header-logo">🏆</div>
+    <div class="header-title">
+      <h1>Pokémon Champions</h1>
+      <p><span class="conn-dot" id="conn-dot"></span><span id="conn-label">Conectando...</span></p>
+    </div>
+    <div class="header-budget" id="header-budget"></div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('auction')">🎯 Subasta</div>
+    <div class="tab" onclick="showTab('rosters')">👥 Equipos</div>
+    <div class="tab admin-only" onclick="showTab('admin')" style="display:none">⚙️ Admin</div>
+  </div>
+  <div id="tab-auction" class="panel active">
+    <div class="auction-layout">
+      <div class="auction-main" id="auction-main">
+        <div class="no-auction"><div class="icon">⏳</div><p>Esperando que el admin<br>inicie la subasta...</p></div>
+      </div>
+      <div class="auction-side">
+        <div class="section-title">Equipos</div>
+        <div class="teams-mini" id="teams-mini"></div>
+      </div>
+    </div>
+  </div>
+  <div id="tab-rosters" class="panel">
+    <div class="admin-panel">
+      <div class="stat-row">
+        <div class="stat-card"><div class="stat-val" id="stat-sold">0</div><div class="stat-lbl">Vendidos</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-avail">0</div><div class="stat-lbl">Disponibles</div></div>
+        <div class="stat-card"><div class="stat-val" id="stat-spent">0</div><div class="stat-lbl">Total gastado</div></div>
+      </div>
+      <div class="section-title">Rosters por equipo</div>
+      <div class="roster-grid" id="roster-grid"></div>
+    </div>
+  </div>
+  <div id="tab-admin" class="panel">
+    <div class="admin-panel">
+      <div class="section-title">Control de subasta</div>
+      <div class="admin-controls">
+        <button class="btn-primary" style="width:auto;padding:8px 16px" id="btn-end-auction" onclick="endCurrentAuction()" disabled>✅ Vender al mejor postor</button>
+        <button class="btn-secondary" id="btn-cancel-auction" onclick="cancelCurrentAuction()" disabled>❌ Cancelar subasta</button>
+        <button class="btn-secondary" onclick="resetAll()" style="margin-left:auto;border-color:#FF4444;color:#FF4444">🗑 Reset total</button>
+      </div>
+      <div class="section-title">Jugadores disponibles</div>
+      <div class="player-grid" id="admin-player-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="sold-overlay" id="sold-overlay" onclick="closeSoldBanner()"></div>
+<div class="sold-banner" id="sold-banner">
+  <div style="font-size:48px;margin-bottom:8px">⚡</div>
+  <h2>¡VENDIDO!</h2>
+  <div class="sold-price" id="sold-price"></div>
+  <p id="sold-text"></p>
+  <button class="btn-primary" style="margin-top:16px" onclick="closeSoldBanner()">OK</button>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, runTransaction, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB2Ccz_UfImOIsGaQNipUzIgjEWugPge3E",
+  authDomain: "vgc-liga-peruana.firebaseapp.com",
+  databaseURL: "https://vgc-liga-peruana-default-rtdb.firebaseio.com",
+  projectId: "vgc-liga-peruana",
+  storageBucket: "vgc-liga-peruana.firebasestorage.app",
+  messagingSenderId: "270984716525",
+  appId: "1:270984716525:web:05e04bc6968e4537e0ece4"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const BUDGET = 30000;
+const TIMER_SECONDS = 30;
+const TEAM_COLORS = ['#C8951A','#C0392B','#2980B9','#27AE60','#8E44AD','#E67E22','#1ABC9C','#E91E63'];
+
+const TEAMS_DEFAULT = [
+  {id:0,name:'T&M VGC',color:TEAM_COLORS[0],budget:BUDGET,players:[]},
+  {id:1,name:'Freezing Blizzards',color:TEAM_COLORS[1],budget:BUDGET,players:[]},
+  {id:2,name:'Fabconchistas',color:TEAM_COLORS[2],budget:BUDGET,players:[]},
+  {id:3,name:'FakeOut SD',color:TEAM_COLORS[3],budget:BUDGET,players:[]},
+  {id:4,name:'IzI peruanos',color:TEAM_COLORS[4],budget:BUDGET,players:[]},
+  {id:5,name:'Wishborn Dragons',color:TEAM_COLORS[5],budget:BUDGET,players:[]},
+  {id:6,name:'Perú Saint Gengar',color:TEAM_COLORS[6],budget:BUDGET,players:[]},
+  {id:7,name:'Sand Streamers',color:TEAM_COLORS[7],budget:BUDGET,players:[]}
+];
+
+const ALL_PLAYERS = [
+  "Mauricio Morale","Fabricio Concha Castro","Benjamin Ruiz","Alexiev Castro","Israel Vallejos",
+  "Hardi Alexander Manrique Hurtado","Guillermo Zavala","Marcelo Cueva","Cristian Palante",
+  "Carlos Vilchez","Daniel Saenz","Bryan Emilio More Sandoval","Pablo Verástegui",
+  "Luis Alonso Coello Zanabria","Diego Aparicio","Luis Roberto Pozo Ccanto","Jorge Baca Elera",
+  "Ernesto Serpa","William Chochoca","Bryan Jeremy Changa Cotrina","Manuel Espiritu",
+  "Matias Canales","Italo Lozada","Jeanpier Paucar Galindo","Luis Nuñez Zavala",
+  "Sergio Aguirre Obando","Luis Allasi","Andre Tavara","Rainer Arana","Rodrigo Montoya",
+  "Francisco Alca","Alejandro Nicolás Tejada Mesías","Marcelo Braulio Vega Guillen",
+  "Rodrigo Rodriguez Ruelas","Matthew Vigil Flores","Giorgio Falconí",
+  "Luis Alfonso Huillcaya Ortiz","José Quiroz","Hanns Pizarro","Daniel Marcelo",
+  "Sebastian Solari","Dorian Quiñonez","Valentino Parra","Jesus Utrilla G",
+  "Franco De Vettori","Carlos Eduardo Verástegui","Héctor Acuña Robles","Sam Villavicencio",
+  "Gerardo Balbuena","Glauco Valdivieso Jimenez","Andrei Klepatzky","Sebastián Avendaño",
+  "Mathias Rivera","Marcelo Prada","Amir Quiroz","Diego Espinoza",
+  "Jesús Guillermo Cárdenas Chumpitaz","Brian Benavides","Joaquin Valerea",
+  "Suárez Villacorta Matias Guillermo","ABRAHAM GUILLEN CUYA","Gabriel Momiy",
+  "Jesús Pinto","Patricio Binate","Edwar Trinidad Medrano","Raul Mejia",
+  "Alexander Velasque","Fabio Garcia"
+];
+
+let localState = {
+  teams: JSON.parse(JSON.stringify(TEAMS_DEFAULT)),
+  players: ALL_PLAYERS.map((n,i)=>({id:i,name:n,status:'available',soldTo:null,soldPrice:0})),
+  auction: null,
+  bids: []
+};
+let currentUser = null;
+let isAdmin = false;
+let timerInterval = null;
+let lastAuctionId = null;
+
+function getInitials(name){return name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
+function formatK(n){return n>=1000?(n/1000).toFixed(1)+'k':String(n)}
+function getTeamById(id){return localState.teams.find(t=>t.id===id)}
+function getUserTeam(){return localState.teams.find(t=>t.name.toLowerCase()===currentUser?.toLowerCase())||null}
+
+// Connection status
+const connRef = ref(db, '.info/connected');
+onValue(connRef, snap => {
+  const online = snap.val();
+  const dot = document.getElementById('conn-dot');
+  const lbl = document.getElementById('conn-label');
+  if(dot){dot.className='conn-dot '+(online?'online':'offline')}
+  if(lbl){lbl.textContent=online?'En vivo':'Sin conexión'}
+});
+
+// Initialize DB with defaults if empty
+async function initDB(){
+  const snap = await get(ref(db,'teams'));
+  if(!snap.exists()){
+    await set(ref(db,'teams'), TEAMS_DEFAULT);
+    await set(ref(db,'players'), localState.players);
+    await set(ref(db,'auction'), null);
+    await set(ref(db,'bids'), []);
+  }
+}
+
+// Listen to all state changes in real time
+function startListeners(){
+  onValue(ref(db,'teams'), snap => {
+    if(snap.exists()) localState.teams = Object.values(snap.val());
+    renderTeamsMini(); renderRosters(); updateStats(); updateHeaderBudget();
+  });
+  onValue(ref(db,'players'), snap => {
+    if(snap.exists()) localState.players = Object.values(snap.val());
+    if(isAdmin) renderAdminPlayers();
+    updateStats();
+  });
+  onValue(ref(db,'auction'), snap => {
+    const prev = localState.auction;
+    localState.auction = snap.val();
+    // Show sold banner when auction closes with a winner
+    if(prev && !localState.auction && prev.leadTeamId !== null && prev.leadTeamId !== undefined){
+      const team = getTeamById(prev.leadTeamId);
+      const player = localState.players.find(p=>p.id===prev.playerId);
+      if(team && player && player.status==='sold'){
+        showSoldBanner(player.name, team.name, player.soldPrice, team.color);
+      }
+    }
+    renderAuction();
+    if(isAdmin) renderAdminPanel();
+    // Start/stop timer for admin
+    if(isAdmin){
+      if(localState.auction && localState.auction.id !== lastAuctionId){
+        lastAuctionId = localState.auction.id;
+        startAdminTimer();
+      } else if(!localState.auction){
+        clearInterval(timerInterval);
+      }
+    }
+  });
+  onValue(ref(db,'bids'), snap => {
+    localState.bids = snap.val() ? Object.values(snap.val()) : [];
+    renderAuction();
+  });
+}
+
+// Admin timer — only admin decrements the timer in Firebase
+function startAdminTimer(){
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(async()=>{
+    if(!localState.auction) return clearInterval(timerInterval);
+    const newTime = Math.max(0, (localState.auction.timeLeft||TIMER_SECONDS) - 1);
+    await set(ref(db,'auction/timeLeft'), newTime);
+    if(newTime <= 0){
+      clearInterval(timerInterval);
+      await autoEndAuction();
+    }
+  }, 1000);
+}
+
+async function autoEndAuction(){
+  if(!localState.auction) return;
+  if(localState.auction.leadTeamId === null || localState.auction.leadTeamId === undefined){
+    await set(ref(db,'auction'), null);
+  } else {
+    await endCurrentAuction();
+  }
+}
+
+window.handleLogin = function(){
+  const val = document.getElementById('pw-input').value.trim();
+  if(!val){document.getElementById('pw-error').textContent='Ingresa un nombre.';return}
+  if(val.toLowerCase()==='admin'||val==='admin2024'){
+    isAdmin=true; currentUser='Admin';
+    document.querySelectorAll('.admin-only').forEach(e=>e.style.display='');
+  } else {
+    const team = localState.teams.find(t=>t.name.toLowerCase()===val.toLowerCase());
+    if(!team){document.getElementById('pw-error').textContent='Equipo no encontrado. Verifica el nombre exacto.';return}
+    currentUser=team.name; isAdmin=false;
+  }
+  document.getElementById('pw-screen').style.display='none';
+  document.getElementById('main-app').style.display='flex';
+  updateHeaderBudget();
+  renderAll();
+  // Enter on input
+  document.getElementById('pw-input').removeEventListener('keydown', loginEnter);
+};
+
+function loginEnter(e){if(e.key==='Enter') window.handleLogin();}
+document.getElementById('pw-input').addEventListener('keydown', loginEnter);
+
+window.showTab = function(tab){
+  const tabs=['auction','rosters','admin'];
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+};
+
+function updateHeaderBudget(){
+  const el=document.getElementById('header-budget');
+  if(!el)return;
+  if(isAdmin){el.innerHTML='<strong>ADMIN</strong>';return}
+  const t=getUserTeam();
+  if(t) el.innerHTML=`<span>Presupuesto</span><strong>${t.budget.toLocaleString()}</strong>`;
+}
+
+function renderAll(){
+  renderAuction(); renderTeamsMini(); renderRosters(); updateStats();
+  if(isAdmin) renderAdminPanel();
+}
+
+function renderTeamsMini(){
+  const el=document.getElementById('teams-mini');
+  if(!el)return;
+  el.innerHTML=localState.teams.map(t=>{
+    const pct=Math.round((t.budget/BUDGET)*100);
+    const isActive=localState.auction&&localState.auction.leadTeamId===t.id;
+    return `<div class="team-mini-card ${isActive?'active-team':''}">
+      <div class="team-mini-top">
+        <div class="team-mini-name" style="color:${t.color}">${t.name}</div>
+        <div class="team-mini-budget">${t.budget.toLocaleString()}</div>
+      </div>
+      <div class="team-mini-bar"><div class="team-mini-fill" style="width:${pct}%;background:${t.color}"></div></div>
+      <div class="team-mini-players">${(t.players||[]).length}/5 slots · ${5-(t.players||[]).length} libres</div>
+    </div>`;
+  }).join('');
+}
+
+function renderAuction(){
+  const el=document.getElementById('auction-main');
+  if(!el)return;
+  if(!localState.auction){
+    el.innerHTML=`<div class="no-auction"><div class="icon">⏳</div><p>Esperando que el admin<br>inicie la próxima subasta...</p></div>`;
+    return;
+  }
+  const player=localState.players.find(p=>p.id===localState.auction.playerId);
+  if(!player)return;
+  const leader=localState.auction.leadTeamId!==null&&localState.auction.leadTeamId!==undefined?getTeamById(localState.auction.leadTeamId):null;
+  const userTeam=getUserTeam();
+  const canBid=userTeam&&userTeam.budget>(localState.auction.currentBid||0)&&!isAdmin;
+  const timeLeft=localState.auction.timeLeft??TIMER_SECONDS;
+  const timePct=(timeLeft/TIMER_SECONDS)*100;
+  const urgent=timeLeft<=10;
+  const recentBids=(localState.bids||[]).filter(b=>b.auctionId===localState.auction.id).slice(-6).reverse();
+  el.innerHTML=`
+    <div class="current-player-card">
+      <div class="player-avatar">${getInitials(player.name)}</div>
+      <div class="player-name">${player.name}</div>
+      <div class="player-number">Jugador #${player.id+1} de ${ALL_PLAYERS.length}</div>
+      <div class="current-bid-label">Puja actual</div>
+      <div class="current-bid">${(localState.auction.currentBid||500).toLocaleString()}</div>
+      ${leader?`<div class="bid-leader" style="border-color:${leader.color};color:${leader.color}">Líder: ${leader.name}</div>`:'<div class="bid-leader">Sin pujas aún</div>'}
+      <div class="countdown ${urgent?'urgent':''}">${timeLeft}s</div>
+      <div class="timer-bar"><div class="timer-fill ${urgent?'urgent':''}" style="width:${timePct}%"></div></div>
+    </div>
+    ${canBid?`
+    <div class="bid-controls">
+      <h3>REALIZAR PUJA — ${userTeam.name}</h3>
+      <div class="bid-amounts">
+        ${[500,1000,2000,5000].map(a=>`<button class="bid-btn" onclick="placeBid(${(localState.auction.currentBid||500)+a})">+${formatK(a)}</button>`).join('')}
+      </div>
+      <div class="bid-custom">
+        <input type="number" id="custom-bid" placeholder="Monto personalizado" min="${(localState.auction.currentBid||500)+100}" step="100"/>
+        <button class="btn-primary" style="width:auto;padding:8px 14px" onclick="placeCustomBid()">Pujar</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted)">Tu presupuesto: ${userTeam.budget.toLocaleString()} · Mínimo: ${((localState.auction.currentBid||500)+100).toLocaleString()}</div>
+    </div>`:`<div class="alert alert-info">${isAdmin?'Modo admin — solo observas las pujas.':'Inicia sesión con tu equipo para pujar.'}</div>`}
+    <div class="bid-history">
+      <h3>HISTORIAL DE PUJAS</h3>
+      ${recentBids.length?recentBids.map(b=>{
+        const bt=getTeamById(b.teamId);
+        return `<div class="bid-entry">
+          <span style="color:${bt?bt.color:'#888'}">${bt?bt.name:'?'}</span>
+          <span class="bid-entry-amount">${b.amount.toLocaleString()}</span>
+          <span class="bid-entry-time">${b.time||''}</span>
+        </div>`;
+      }).join(''):'<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px">Sin pujas aún</div>'}
+    </div>`;
+}
+
+window.placeBid = async function(amount){
+  const team=getUserTeam();
+  if(!team||!localState.auction)return;
+  if(amount>team.budget){alert('¡No tienes suficiente presupuesto!');return}
+  if(amount<=(localState.auction.currentBid||0)){alert('Debes pujar más que la puja actual.');return}
+  // Use transaction to prevent race conditions
+  await runTransaction(ref(db,'auction'), current => {
+    if(!current) return current;
+    if(amount <= (current.currentBid||0)) return; // abort
+    current.currentBid = amount;
+    current.leadTeamId = team.id;
+    current.timeLeft = Math.max(current.timeLeft||TIMER_SECONDS, 15);
+    return current;
+  });
+  // Add bid to history
+  const bidKey = Date.now();
+  await set(ref(db,`bids/${bidKey}`), {
+    auctionId: localState.auction.id,
+    teamId: team.id,
+    amount,
+    time: new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit',second:'2-digit'})
+  });
+};
+
+window.placeCustomBid = function(){
+  const val=parseInt(document.getElementById('custom-bid')?.value);
+  if(!val||isNaN(val)){alert('Ingresa un monto válido');return}
+  window.placeBid(val);
+};
+
+function renderAdminPanel(){
+  renderAdminPlayers();
+  const btnEnd=document.getElementById('btn-end-auction');
+  const btnCancel=document.getElementById('btn-cancel-auction');
+  if(btnEnd) btnEnd.disabled=!localState.auction;
+  if(btnCancel) btnCancel.disabled=!localState.auction;
+}
+
+function renderAdminPlayers(){
+  const el=document.getElementById('admin-player-grid');
+  if(!el)return;
+  el.innerHTML=localState.players.map(p=>{
+    const isLive=localState.auction&&localState.auction.playerId===p.id;
+    const sc=p.status==='sold'?'sold':isLive?'in-auction':'';
+    const sl=p.status==='sold'?`<span class="player-card-status status-sold">Vendido</span>`:
+      isLive?`<span class="player-card-status status-live">En subasta</span>`:
+      `<span class="player-card-status status-available">Disponible</span>`;
+    return `<div class="player-card ${sc}">
+      <div class="player-card-name">${p.name}</div>${sl}
+      ${p.status==='sold'?`<div style="font-size:10px;color:var(--gold-light)">${getTeamById(p.soldTo)?.name||'?'} · ${p.soldPrice.toLocaleString()}</div>`:''}
+      ${p.status==='available'&&!isLive&&!localState.auction?`<button class="btn-start-auction" onclick="startAuction(${p.id})">Iniciar subasta</button>`:''}
+    </div>`;
+  }).join('');
+}
+
+window.startAuction = async function(playerId){
+  if(localState.auction){alert('Ya hay una subasta en curso.');return}
+  const auctionData={id:Date.now(),playerId,currentBid:500,leadTeamId:null,timeLeft:TIMER_SECONDS};
+  await set(ref(db,'auction'), auctionData);
+};
+
+window.endCurrentAuction = async function(){
+  if(!localState.auction)return;
+  if(localState.auction.leadTeamId===null||localState.auction.leadTeamId===undefined){
+    alert('Nadie pujó aún. Cancela la subasta si quieres saltarla.');return;
+  }
+  clearInterval(timerInterval);
+  const player=localState.players.find(p=>p.id===localState.auction.playerId);
+  const team=getTeamById(localState.auction.leadTeamId);
+  if(!player||!team)return;
+  // Update player
+  await set(ref(db,`players/${player.id}`),{...player,status:'sold',soldTo:team.id,soldPrice:localState.auction.currentBid});
+  // Update team budget and players
+  const updatedPlayers=[...(team.players||[]),{id:player.id,name:player.name,price:localState.auction.currentBid}];
+  await set(ref(db,`teams/${team.id}`),{...team,budget:team.budget-localState.auction.currentBid,players:updatedPlayers});
+  // Clear auction
+  await set(ref(db,'auction'), null);
+};
+
+window.cancelCurrentAuction = async function(){
+  if(!localState.auction)return;
+  clearInterval(timerInterval);
+  await set(ref(db,'auction'), null);
+};
+
+window.resetAll = async function(){
+  if(!confirm('¿Resetear TODO? Se borran todas las pujas, ventas y presupuestos.'))return;
+  clearInterval(timerInterval);
+  await set(ref(db,'teams'), TEAMS_DEFAULT);
+  await set(ref(db,'players'), ALL_PLAYERS.map((n,i)=>({id:i,name:n,status:'available',soldTo:null,soldPrice:0})));
+  await set(ref(db,'auction'), null);
+  await set(ref(db,'bids'), null);
+};
+
+function showSoldBanner(playerName,teamName,price,color){
+  document.getElementById('sold-price').textContent=price.toLocaleString();
+  document.getElementById('sold-text').innerHTML=`<strong>${playerName}</strong><br>adquirido por <strong style="color:${color}">${teamName}</strong>`;
+  document.getElementById('sold-overlay').classList.add('show');
+  document.getElementById('sold-banner').classList.add('show');
+}
+window.closeSoldBanner=function(){
+  document.getElementById('sold-overlay').classList.remove('show');
+  document.getElementById('sold-banner').classList.remove('show');
+};
+
+function renderRosters(){
+  const el=document.getElementById('roster-grid');
+  if(!el)return;
+  el.innerHTML=localState.teams.map(t=>`
+    <div class="roster-card" style="border-top:3px solid ${t.color}">
+      <div class="roster-card-header">
+        <div class="roster-card-name" style="color:${t.color}">${t.name}</div>
+        <div class="roster-card-budget">${t.budget.toLocaleString()}</div>
+      </div>
+      <div class="roster-player-list">
+        ${(t.players||[]).length?(t.players||[]).map(p=>`
+          <div class="roster-player"><span>${p.name}</span><span class="roster-player-price">${p.price.toLocaleString()}</span></div>`).join('')
+          :'<div class="roster-empty">Sin jugadores aún</div>'}
+        ${Array(Math.max(0,5-(t.players||[]).length)).fill(0).map(()=>`<div class="roster-player" style="opacity:.3;border:1px dashed var(--border)"><span>Slot disponible</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function updateStats(){
+  const sold=localState.players.filter(p=>p.status==='sold').length;
+  const avail=localState.players.filter(p=>p.status==='available').length;
+  const spent=localState.teams.reduce((s,t)=>s+(BUDGET-t.budget),0);
+  const s1=document.getElementById('stat-sold');
+  const s2=document.getElementById('stat-avail');
+  const s3=document.getElementById('stat-spent');
+  if(s1)s1.textContent=sold;
+  if(s2)s2.textContent=avail;
+  if(s3)s3.textContent=formatK(spent);
+}
+
+// Boot
+(async()=>{
+  await initDB();
+  startListeners();
+  document.getElementById('loading-screen').style.display='none';
+  document.getElementById('pw-screen').style.display='flex';
+})();
+</script>
+</body>
+</html>
