@@ -142,7 +142,8 @@ h1,h2,h3{font-family:'Cinzel',serif}
     <div style="font-size:36px;margin-bottom:12px">🏆</div>
     <h2>Pokémon Champions</h2>
     <p>Liga Peruana de VGC — Sistema de Pujas</p>
-    <input type="text" id="pw-input" placeholder="Nombre de equipo o 'admin'" autocomplete="off"/>
+    <input type="text" id="pw-input" placeholder="Nombre del equipo" autocomplete="off" style="margin-bottom:8px"/>
+    <input type="password" id="pw-code" placeholder="Código de acceso" autocomplete="off"/>
     <button class="btn-primary" onclick="handleLogin()">Ingresar</button>
     <p id="pw-error" class="pw-error"></p>
   </div>
@@ -382,22 +383,40 @@ async function autoEndAuction(){
   } else await endCurrentAuction();
 }
 
+const TEAM_CODES = {
+  'T&M VGC':'TMV24',
+  'Freezing Blizzards':'FRZ24',
+  'Fabconchistas':'FAB24',
+  'FakeOut SD':'FSD24',
+  'IzI peruanos':'IZI24',
+  'Wishborn Dragons':'WBD24',
+  'Perú Saint Gengar':'PSG24',
+  'Sand Streamers':'SSD24'
+};
+
 window.handleLogin=function(){
   const val=document.getElementById('pw-input').value.trim();
-  if(!val){document.getElementById('pw-error').textContent='Ingresa un nombre.';return}
-  if(val.toLowerCase()==='admin'||val==='admin2024'){
+  const code=document.getElementById('pw-code').value.trim();
+  const err=document.getElementById('pw-error');
+  if(!val){err.textContent='Ingresa el nombre de tu equipo.';return}
+  // Admin login
+  if(val.toLowerCase()==='admin'&&code==='admin2024'){
     isAdmin=true; currentUser='Admin';
     document.querySelectorAll('.admin-only').forEach(e=>e.style.display='');
   } else {
     const team=localState.teams.find(t=>t.name.toLowerCase()===val.toLowerCase());
-    if(!team){document.getElementById('pw-error').textContent='Equipo no encontrado. Verifica el nombre exacto.';return}
+    if(!team){err.textContent='Equipo no encontrado. Verifica el nombre exacto.';return}
+    const expectedCode=TEAM_CODES[team.name];
+    if(!expectedCode||code!==expectedCode){err.textContent='Código incorrecto.';return}
     currentUser=team.name; isAdmin=false;
   }
+  err.textContent='';
   document.getElementById('pw-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   updateHeaderBudget(); renderAll();
 };
-document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter') window.handleLogin()});
+document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter') document.getElementById('pw-code').focus()});
+document.getElementById('pw-code').addEventListener('keydown',e=>{if(e.key==='Enter') window.handleLogin()});
 
 window.showTab=function(tab){
   const tabs=['auction','rosters','admin'];
