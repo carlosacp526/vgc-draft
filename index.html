@@ -127,6 +127,19 @@ h1,h2,h3{font-family:'Cinzel',serif}
 .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 .badge-cap{font-size:9px;padding:1px 5px;border-radius:8px;background:#1A1000;border:1px solid var(--gold-dark);color:var(--gold);margin-left:4px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border:2px solid var(--gold);border-radius:14px;padding:24px;min-width:300px;max-width:480px;width:100%}
+.modal h3{font-family:'Cinzel',serif;color:var(--gold-light);margin-bottom:16px;font-size:16px}
+.modal label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px;margin-top:10px}
+.modal input,.modal select{width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:13px;font-family:'Exo 2',sans-serif;margin-bottom:4px}
+.modal input:focus,.modal select:focus{outline:none;border-color:var(--gold)}
+.modal-btns{display:flex;gap:8px;margin-top:16px}
+.modal-btns .btn-primary{flex:1}
+.modal-btns .btn-secondary{flex:1}
+.btn-steal{font-size:10px;padding:3px 8px;background:#1A001A;border:1px solid #8E44AD;color:#C39BD3;border-radius:4px;cursor:pointer;font-family:'Exo 2',sans-serif;margin-left:4px;transition:all .2s}
+.btn-steal:hover{background:#8E44AD;color:#fff}
+.btn-steal:disabled{opacity:.3;cursor:not-allowed}
+.locked-notice{font-size:11px;color:#FF6B6B;background:#1A0000;border:1px solid #5A0000;border-radius:6px;padding:8px 12px;margin-bottom:10px;text-align:center}
 </style>
 </head>
 <body>
@@ -212,6 +225,13 @@ h1,h2,h3{font-family:'Cinzel',serif}
         <button class="btn-secondary" id="btn-cancel-auction" onclick="cancelCurrentAuction()" disabled>❌ Cancelar</button>
         <button class="btn-secondary" onclick="resetAll()" style="border-color:#FF4444;color:#FF4444">🗑 Reset total</button>
       </div>
+      <div class="section-title">Gestión de equipos y jugadores</div>
+      <div id="auction-lock-notice" class="locked-notice" style="display:none">🔒 No puedes realizar cambios durante una subasta activa.</div>
+      <div class="admin-controls" style="margin-bottom:14px">
+        <button class="btn-secondary" onclick="openMoneyModal()">💰 Editar presupuesto</button>
+        <button class="btn-secondary" onclick="openRenameModal()">✏️ Renombrar jugador</button>
+        <button class="btn-secondary" onclick="openMoveModal()">🔀 Mover jugador</button>
+      </div>
       <div class="section-title">Jugador sorpresa</div>
       <div style="background:var(--surface2);border:1px solid var(--gold-dark);border-radius:10px;padding:14px;margin-bottom:16px">
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Agrega un jugador especial a la subasta en cualquier momento. Solo visible para el admin.</div>
@@ -233,6 +253,64 @@ h1,h2,h3{font-family:'Cinzel',serif}
   <div class="sold-price" id="sold-price"></div>
   <p id="sold-text"></p>
   <button class="btn-primary" style="margin-top:16px" onclick="closeSoldBanner()">OK</button>
+</div>
+
+<!-- Admin Edit Money Modal -->
+<div id="modal-money" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>💰 Editar presupuesto</h3>
+    <label>Equipo</label>
+    <select id="modal-money-team"></select>
+    <label>Nuevo presupuesto</label>
+    <input type="number" id="modal-money-amount" min="0" step="500"/>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('modal-money')">Cancelar</button>
+      <button class="btn-primary" onclick="saveMoney()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Edit Player Name Modal -->
+<div id="modal-rename" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>✏️ Renombrar jugador</h3>
+    <label>Jugador</label>
+    <select id="modal-rename-player"></select>
+    <label>Nuevo nombre</label>
+    <input type="text" id="modal-rename-name" placeholder="Nuevo nombre"/>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('modal-rename')">Cancelar</button>
+      <button class="btn-primary" onclick="saveRename()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Move Player Modal -->
+<div id="modal-move" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>🔀 Mover jugador</h3>
+    <label>Jugador (de equipo)</label>
+    <select id="modal-move-player"></select>
+    <label>Mover a equipo</label>
+    <select id="modal-move-target"></select>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('modal-move')">Cancelar</button>
+      <button class="btn-primary" onclick="saveMove()">Mover</button>
+    </div>
+  </div>
+</div>
+
+<!-- Steal Confirm Modal -->
+<div id="modal-steal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>🎯 Robar jugador</h3>
+    <p id="modal-steal-text" style="font-size:13px;color:var(--text);margin-bottom:8px"></p>
+    <p id="modal-steal-cost" style="font-size:20px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif;text-align:center;margin:12px 0"></p>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('modal-steal')">Cancelar</button>
+      <button class="btn-primary" onclick="confirmSteal()">Confirmar robo</button>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -665,31 +743,7 @@ window.closeSoldBanner=function(){
   document.getElementById('sold-banner').classList.remove('show');
 };
 
-function renderRosters(){
-  const el=document.getElementById('roster-grid');
-  if(!el) return;
-  el.innerHTML=localState.teams.map(t=>{
-    const fixed=(t.players||[]).filter(p=>p.fixed);
-    const drafted=(t.players||[]).filter(p=>!p.fixed);
-    const slots=Math.max(0,5-drafted.length);
-    return `<div class="roster-card" style="border-top:3px solid ${t.color}">
-      <div class="roster-card-header">
-        <div class="roster-card-name" style="color:${t.color};display:flex;align-items:center;gap:8px">${t.logo?`<img src="${t.logo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid ${t.color}" onerror="this.style.display='none'"/>`:''}${t.name}</div>
-        <div class="roster-card-budget">${t.budget.toLocaleString()}</div>
-      </div>
-      <div class="roster-player-list">
-        ${fixed.map(p=>`<div class="roster-player fixed">
-          <span>${p.name} <span class="badge-cap">${p.role}</span></span>
-          <span style="font-size:10px;color:var(--muted)">fijo</span>
-        </div>`).join('')}
-        ${drafted.length?drafted.map(p=>`<div class="roster-player">
-          <span>${p.name}</span><span class="roster-player-price">${p.price.toLocaleString()}</span>
-        </div>`).join(''):''}
-        ${Array(slots).fill(0).map(()=>`<div class="roster-player" style="opacity:.3;border:1px dashed var(--border)"><span>Slot disponible</span></div>`).join('')}
-      </div>
-    </div>`;
-  }).join('');
-}
+// renderRosters is defined below as override
 
 function updateStats(){
   const sold=localState.players.filter(p=>p.status==='sold').length;
@@ -702,6 +756,202 @@ function updateStats(){
   if(s1)s1.textContent=sold;
   if(s2)s2.textContent=avail;
   if(s3)s3.textContent=formatK(spent);
+}
+
+// ── STEAL SYSTEM ──────────────────────────────────────────────────────────
+let pendingSteal = null; // {playerObj, fromTeam, toTeam, cost}
+
+function canSteal(team){
+  // Team can steal if they haven't stolen yet (stolenUsed not set)
+  return !team.stolenUsed;
+}
+
+// Render rosters with steal buttons for non-admin teams
+function renderRosterSteals(el, teams, userTeam){
+  el.innerHTML = teams.map(t=>{
+    const fixed=(t.players||[]).filter(p=>p.fixed);
+    const drafted=(t.players||[]).filter(p=>!p.fixed);
+    const slots=Math.max(0,5-drafted.length);
+    const isMyTeam = userTeam && t.id===userTeam.id;
+    return `<div class="roster-card" style="border-top:3px solid ${t.color}">
+      <div class="roster-card-header">
+        <div class="roster-card-name" style="color:${t.color};display:flex;align-items:center;gap:8px">${t.logo?`<img src="${t.logo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid ${t.color}" onerror="this.style.display='none'"/>`:''}${t.name}${isMyTeam?` <span style="font-size:9px;padding:1px 6px;background:#1A1000;border:1px solid var(--gold-dark);border-radius:8px;color:var(--gold)">Mi equipo</span>`:''}${t.stolenUsed?` <span style="font-size:9px;padding:1px 6px;background:#1A0A0A;border:1px solid #5A0000;border-radius:8px;color:#FF6B6B">Robo usado</span>`:''}
+        </div>
+        <div class="roster-card-budget">${t.budget.toLocaleString()}</div>
+      </div>
+      <div class="roster-player-list">
+        ${fixed.map(p=>`<div class="roster-player fixed">
+          <span>${p.name} <span class="badge-cap">${p.role}</span></span>
+          <span style="font-size:10px;color:var(--muted)">fijo</span>
+        </div>`).join('')}
+        ${drafted.map(p=>{
+          const stealCost = p.price + 5000;
+          const myT = userTeam;
+          const canS = myT && !isMyTeam && canSteal(myT) && myT.budget >= stealCost && !localState.auction;
+          const stealBtn = (!isAdmin && myT && !isMyTeam)
+            ? `<button class="btn-steal" ${!canS?'disabled title="Sin robo disponible, presupuesto insuficiente o subasta activa"':''} onclick="openSteal('${p.id}','${t.id}','${p.name}',${p.price})">🎯 ${stealCost.toLocaleString()}</button>`
+            : '';
+          return `<div class="roster-player">
+            <span>${p.name}${stealBtn}</span>
+            <span class="roster-player-price">${p.price.toLocaleString()}</span>
+          </div>`;
+        }).join('')}
+        ${Array(slots).fill(0).map(()=>`<div class="roster-player" style="opacity:.3;border:1px dashed var(--border)"><span>Slot disponible</span></div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.openSteal=function(playerId, fromTeamId, playerName, originalPrice){
+  if(localState.auction){alert('No puedes robar durante una subasta activa.');return}
+  const myTeam = getUserTeam();
+  if(!myTeam){return}
+  if(myTeam.stolenUsed){alert('Ya usaste tu robo. Solo se puede robar una vez por equipo.');return}
+  const cost = originalPrice + 5000;
+  if(myTeam.budget < cost){alert(`No tienes suficiente presupuesto. Necesitas ${cost.toLocaleString()}`);return}
+  const fromTeam = localState.teams.find(t=>String(t.id)===String(fromTeamId));
+  pendingSteal = {playerId, fromTeamId: parseInt(fromTeamId), playerName, cost, originalPrice};
+  document.getElementById('modal-steal-text').innerHTML =
+    `¿Robar a <strong>${playerName}</strong> de <strong style="color:${fromTeam?.color}">${fromTeam?.name}</strong>?`;
+  document.getElementById('modal-steal-cost').textContent = cost.toLocaleString();
+  document.getElementById('modal-steal').style.display='flex';
+};
+
+window.confirmSteal=async function(){
+  if(!pendingSteal) return;
+  if(localState.auction){alert('No puedes robar durante una subasta activa.');closeModal('modal-steal');return}
+  const myTeam = getUserTeam();
+  const fromTeam = localState.teams.find(t=>t.id===pendingSteal.fromTeamId);
+  const player = localState.players.find(p=>String(p.id)===String(pendingSteal.playerId));
+  if(!myTeam||!fromTeam||!player){closeModal('modal-steal');return}
+  const cost = pendingSteal.cost;
+  // Remove player from fromTeam, refund original price to fromTeam
+  const fromNewPlayers = (fromTeam.players||[]).filter(p=>String(p.id)!==String(pendingSteal.playerId));
+  await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + pendingSteal.originalPrice, players: fromNewPlayers});
+  // Add player to myTeam
+  const myNewPlayers = [...(myTeam.players||[]), {id:player.id, name:player.name, price:cost, fixed:false, stolen:true}];
+  await set(ref(db,`teams/${myTeam.id}`),{...myTeam, budget: myTeam.budget - cost, players: myNewPlayers, stolenUsed: true});
+  // Update player record
+  await set(ref(db,`players/${player.id}`),{...player, soldTo: myTeam.id, soldPrice: cost});
+  closeModal('modal-steal');
+  pendingSteal = null;
+  showSoldBanner(player.name, myTeam.name + ' (ROBO)', cost, myTeam.color);
+};
+
+// ── ADMIN MODALS ───────────────────────────────────────────────────────────────
+window.closeModal=function(id){ document.getElementById(id).style.display='none'; };
+
+function auctionGuard(){
+  const notice = document.getElementById('auction-lock-notice');
+  if(localState.auction){
+    if(notice) notice.style.display='block';
+    return true;
+  }
+  if(notice) notice.style.display='none';
+  return false;
+}
+
+window.openMoneyModal=function(){
+  if(auctionGuard()) return;
+  const sel = document.getElementById('modal-money-team');
+  sel.innerHTML = localState.teams.map(t=>`<option value="${t.id}">${t.name} — ${t.budget.toLocaleString()}</option>`).join('');
+  const first = localState.teams[0];
+  document.getElementById('modal-money-amount').value = first ? first.budget : BUDGET;
+  sel.onchange = function(){
+    const t = localState.teams.find(t=>String(t.id)===this.value);
+    if(t) document.getElementById('modal-money-amount').value = t.budget;
+  };
+  document.getElementById('modal-money').style.display='flex';
+};
+
+window.saveMoney=async function(){
+  if(auctionGuard()){closeModal('modal-money');return}
+  const teamId = parseInt(document.getElementById('modal-money-team').value);
+  const amount = parseInt(document.getElementById('modal-money-amount').value);
+  if(isNaN(amount)||amount<0){alert('Monto inválido');return}
+  const team = localState.teams.find(t=>t.id===teamId);
+  if(!team) return;
+  await set(ref(db,`teams/${teamId}`),{...team, budget: amount});
+  closeModal('modal-money');
+};
+
+window.openRenameModal=function(){
+  if(auctionGuard()) return;
+  const sel = document.getElementById('modal-rename-player');
+  // All players (sold or available, not freeagent)
+  const eligible = localState.players.filter(p=>p.status!=='freeagent');
+  sel.innerHTML = eligible.map(p=>`<option value="${p.id}">${p.name} [${p.status}]</option>`).join('');
+  document.getElementById('modal-rename-name').value = eligible[0]?.name||'';
+  sel.onchange = function(){
+    const p = localState.players.find(p=>String(p.id)===this.value);
+    if(p) document.getElementById('modal-rename-name').value = p.name;
+  };
+  document.getElementById('modal-rename').style.display='flex';
+};
+
+window.saveRename=async function(){
+  if(auctionGuard()){closeModal('modal-rename');return}
+  const playerId = document.getElementById('modal-rename-player').value;
+  const newName = document.getElementById('modal-rename-name').value.trim();
+  if(!newName){alert('Ingresa un nombre válido');return}
+  const player = localState.players.find(p=>String(p.id)===String(playerId));
+  if(!player) return;
+  await set(ref(db,`players/${playerId}`),{...player, name: newName});
+  // Also update name in team roster if sold
+  if(player.status==='sold'){
+    const team = localState.teams.find(t=>t.id===player.soldTo);
+    if(team){
+      const updPlayers = (team.players||[]).map(p=>String(p.id)===String(playerId)?{...p,name:newName}:p);
+      await set(ref(db,`teams/${team.id}`),{...team, players: updPlayers});
+    }
+  }
+  closeModal('modal-rename');
+};
+
+window.openMoveModal=function(){
+  if(auctionGuard()) return;
+  const selPlayer = document.getElementById('modal-move-player');
+  const selTarget = document.getElementById('modal-move-target');
+  // Only drafted (non-fixed, sold) players
+  const eligible = localState.players.filter(p=>p.status==='sold');
+  selPlayer.innerHTML = eligible.map(p=>{
+    const t = localState.teams.find(t=>t.id===p.soldTo);
+    return `<option value="${p.id}">${p.name} (${t?.name||'?'})</option>`;
+  }).join('');
+  selTarget.innerHTML = localState.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  document.getElementById('modal-move').style.display='flex';
+};
+
+window.saveMove=async function(){
+  if(auctionGuard()){closeModal('modal-move');return}
+  const playerId = document.getElementById('modal-move-player').value;
+  const targetId = parseInt(document.getElementById('modal-move-target').value);
+  const player = localState.players.find(p=>String(p.id)===String(playerId));
+  if(!player){closeModal('modal-move');return}
+  const fromTeam = localState.teams.find(t=>t.id===player.soldTo);
+  const toTeam = localState.teams.find(t=>t.id===targetId);
+  if(!fromTeam||!toTeam){alert('Equipo no encontrado');return}
+  if(fromTeam.id===toTeam.id){alert('El jugador ya está en ese equipo');return}
+  // Remove from old team (refund price)
+  const fromNewPlayers = (fromTeam.players||[]).filter(p=>String(p.id)!==String(playerId));
+  await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + player.soldPrice, players: fromNewPlayers});
+  // Add to new team (charge same price)
+  if(toTeam.budget < player.soldPrice){
+    if(!confirm(`${toTeam.name} no tiene suficiente presupuesto (${toTeam.budget.toLocaleString()}). ¿Mover de todas formas (el presupuesto quedará negativo)?`)){return}
+  }
+  const toNewPlayers = [...(toTeam.players||[]), {id:player.id, name:player.name, price:player.soldPrice, fixed:false}];
+  await set(ref(db,`teams/${toTeam.id}`),{...toTeam, budget: toTeam.budget - player.soldPrice, players: toNewPlayers});
+  // Update player record
+  await set(ref(db,`players/${playerId}`),{...player, soldTo: toTeam.id});
+  closeModal('modal-move');
+};
+
+// ── OVERRIDE renderRosters to include steal buttons ────────────────────────────
+function renderRosters(){
+  const el=document.getElementById('roster-grid');
+  if(!el) return;
+  const userTeam = getUserTeam();
+  renderRosterSteals(el, localState.teams, userTeam);
 }
 
 (async()=>{
