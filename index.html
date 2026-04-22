@@ -252,28 +252,28 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const BUDGET = 40000;
+const BUDGET = 50000;
 let TIMER_SECONDS = 30;
 let BID_EXTENSION = 5;
 const TEAM_COLORS = ['#C8951A','#C0392B','#2980B9','#27AE60','#8E44AD','#E67E22','#1ABC9C','#E91E63'];
 
 // Captains & subcaptains are fixed — NOT in auction pool
 const TEAMS_DEFAULT = [
-  {id:0,name:'T&M VGC',color:TEAM_COLORS[0],budget:BUDGET,
+  {id:0,name:'T&M VGC',logo:'tmvgc.png',color:TEAM_COLORS[0],budget:BUDGET,
     players:[{id:'c0',name:'A25',price:0,fixed:true,role:'Capitán'},{id:'s0',name:'Valentino Parra',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:1,name:'Freezing Blizzards',color:TEAM_COLORS[1],budget:BUDGET,
+  {id:1,name:'Freezing Blizzards',logo:'freezing.png',color:TEAM_COLORS[1],budget:BUDGET,
     players:[{id:'c1',name:'Juanjo',price:0,fixed:true,role:'Capitán'},{id:'s1',name:'Dorian Quiñonez',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:2,name:'Fabconchistas',color:TEAM_COLORS[2],budget:BUDGET,
+  {id:2,name:'Blaze Eruptions',logo:'blaze.png',color:TEAM_COLORS[2],budget:BUDGET,
     players:[{id:'c2',name:'Ferrito',price:0,fixed:true,role:'Capitán'},{id:'s2',name:'Hanns Pizarro',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:3,name:'FakeOut SD',color:TEAM_COLORS[3],budget:BUDGET,
+  {id:3,name:'FakeOut SD',logo:'fakeout.png',color:TEAM_COLORS[3],budget:BUDGET,
     players:[{id:'c3',name:'Gonzalo',price:0,fixed:true,role:'Capitán'},{id:'s3',name:'Daniel Marcelo',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:4,name:'IzI peruanos',color:TEAM_COLORS[4],budget:BUDGET,
+  {id:4,name:'IzI peruanos',logo:'izi.png',color:TEAM_COLORS[4],budget:BUDGET,
     players:[{id:'c4',name:'Sinnob',price:0,fixed:true,role:'Capitán'},{id:'s4',name:'Jesus Utrilla G',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:5,name:'Wishborn Dragons',color:TEAM_COLORS[5],budget:BUDGET,
+  {id:5,name:'Wishborn Dragons',logo:'wishborn.png',color:TEAM_COLORS[5],budget:BUDGET,
     players:[{id:'c5',name:'Fito',price:0,fixed:true,role:'Capitán'},{id:'s5',name:'Franco De Vettori',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:6,name:'Perú Saint Gengar',color:TEAM_COLORS[6],budget:BUDGET,
+  {id:6,name:'Perú Saint Gengar',logo:'gengar.png',color:TEAM_COLORS[6],budget:BUDGET,
     players:[{id:'c6',name:'Sebacho',price:0,fixed:true,role:'Capitán'},{id:'s6',name:'Carlos Eduardo Verástegui',price:0,fixed:true,role:'Subcapitán'}]},
-  {id:7,name:'Sand Streamers',color:TEAM_COLORS[7],budget:BUDGET,
+  {id:7,name:'Sand Streamers',logo:'sand.png',color:TEAM_COLORS[7],budget:BUDGET,
     players:[{id:'c7',name:'Poketubi',price:0,fixed:true,role:'Capitán'},{id:'s7',name:'Sebastian Solari',price:0,fixed:true,role:'Subcapitán'}]}
 ];
 
@@ -392,7 +392,7 @@ async function autoEndAuction(){
 const TEAM_CODES = {
   'T&M VGC':'TMV24',
   'Freezing Blizzards':'FRZ24',
-  'Fabconchistas':'FAB24',
+  'Blaze Eruptions':'BLZ24',
   'FakeOut SD':'FSD24',
   'IzI peruanos':'IZI24',
   'Wishborn Dragons':'WBD24',
@@ -454,7 +454,7 @@ function renderTeamsMini(){
     const drafted=(t.players||[]).filter(p=>!p.fixed).length;
     return `<div class="team-mini-card ${isActive?'active-team':''}">
       <div class="team-mini-top">
-        <div class="team-mini-name" style="color:${t.color}">${t.name}</div>
+        <div class="team-mini-name" style="color:${t.color};display:flex;align-items:center;gap:6px">${t.logo?`<img src="${t.logo}" style="width:18px;height:18px;border-radius:50%;object-fit:cover;border:1px solid ${t.color}" onerror="this.style.display='none'"/>`:''}${t.name}</div>
         <div class="team-mini-budget">${t.budget.toLocaleString()}</div>
       </div>
       <div class="team-mini-bar"><div class="team-mini-fill" style="width:${pct}%;background:${t.color}"></div></div>
@@ -562,6 +562,7 @@ function renderAdminPlayers(){
       <div class="player-card-name">${p.name}</div>${sl}
       ${p.status==='sold'?`<div style="font-size:10px;color:var(--gold-light)">${getTeamById(p.soldTo)?.name||'?'} · ${p.soldPrice.toLocaleString()}</div>`:''}
       ${p.status==='available'&&!isLive&&!localState.auction?`<button class="btn-start-auction" onclick="startAuction('${p.id}')">Iniciar subasta</button>`:''}
+      ${p.status==='freeagent'?`<button class="btn-start-auction" style="border-color:#2980B9;color:#6699FF" onclick="reactivatePlayer('${p.id}')">↩ Disponible</button>`:''}
     </div>`;
   }).join('');
 }
@@ -578,6 +579,13 @@ window.applyExtensionConfig=function(){
   if(isNaN(val)||val<0){alert('Valor inválido');return}
   BID_EXTENSION=val;
   document.getElementById('cfg-ext-display').textContent=val+'s';
+};
+
+window.reactivatePlayer=async function(playerId){
+  if(!confirm('¿Volver a poner este jugador como disponible?')) return;
+  const player=localState.players.find(p=>String(p.id)===String(playerId));
+  if(!player) return;
+  await set(ref(db,`players/${playerId}`),{...player,status:'available',soldTo:null,soldPrice:0});
 };
 
 window.startSurpriseAuction=async function(){
@@ -666,7 +674,7 @@ function renderRosters(){
     const slots=Math.max(0,5-drafted.length);
     return `<div class="roster-card" style="border-top:3px solid ${t.color}">
       <div class="roster-card-header">
-        <div class="roster-card-name" style="color:${t.color}">${t.name}</div>
+        <div class="roster-card-name" style="color:${t.color};display:flex;align-items:center;gap:8px">${t.logo?`<img src="${t.logo}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid ${t.color}" onerror="this.style.display='none'"/>`:''}${t.name}</div>
         <div class="roster-card-budget">${t.budget.toLocaleString()}</div>
       </div>
       <div class="roster-player-list">
