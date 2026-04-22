@@ -212,6 +212,14 @@ h1,h2,h3{font-family:'Cinzel',serif}
         <button class="btn-secondary" id="btn-cancel-auction" onclick="cancelCurrentAuction()" disabled>❌ Cancelar</button>
         <button class="btn-secondary" onclick="resetAll()" style="border-color:#FF4444;color:#FF4444">🗑 Reset total</button>
       </div>
+      <div class="section-title">Jugador sorpresa</div>
+      <div style="background:var(--surface2);border:1px solid var(--gold-dark);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Agrega un jugador especial a la subasta en cualquier momento. Solo visible para el admin.</div>
+        <div style="display:flex;gap:8px">
+          <input type="text" id="surprise-name" placeholder="Nombre del jugador sorpresa" style="flex:1;padding:8px;background:#0A0A0F;border:1px solid var(--border);color:var(--text);border-radius:6px;font-size:13px;font-family:Exo 2,sans-serif"/>
+          <button class="btn-primary" style="width:auto;padding:8px 16px;white-space:nowrap" onclick="startSurpriseAuction()">⚡ Subastar</button>
+        </div>
+      </div>
       <div class="section-title">Jugadores disponibles para subasta</div>
       <div class="player-grid" id="admin-player-grid"></div>
     </div>
@@ -378,9 +386,7 @@ function startAdminTimer(){
 
 async function autoEndAuction(){
   if(!localState.auction) return;
-  if(localState.auction.leadTeamId===null||localState.auction.leadTeamId===undefined){
-    await set(ref(db,'auction'),null);
-  } else await endCurrentAuction();
+  await endCurrentAuction();
 }
 
 const TEAM_CODES = {
@@ -464,7 +470,7 @@ function renderAuction(){
     el.innerHTML=`<div class="no-auction"><div class="icon">⏳</div><p>Esperando que el admin<br>inicie la próxima subasta...</p></div>`;
     return;
   }
-  const player=localState.players.find(p=>p.id===localState.auction.playerId);
+  const player=localState.players.find(p=>String(p.id)===String(localState.auction.playerId));
   if(!player) return;
   const leader=localState.auction.leadTeamId!==null&&localState.auction.leadTeamId!==undefined?getTeamById(localState.auction.leadTeamId):null;
   const userTeam=getUserTeam();
@@ -549,12 +555,13 @@ function renderAdminPlayers(){
     const isLive=localState.auction&&localState.auction.playerId===p.id;
     const sc=p.status==='sold'?'sold':isLive?'in-auction':'';
     const sl=p.status==='sold'?`<span class="player-card-status status-sold">Vendido</span>`:
-      isLive?`<span class="player-card-status status-live">En subasta</span>`:
-      `<span class="player-card-status status-available">Disponible</span>`;
+      p.status==='freeagent'?`<span class="player-card-status" style="background:#0A0A2A;color:#6699FF;border:1px solid #1A1A4A">Agencia Libre</span>`:
+      isLive?`<span class="player-card-status status-live">${p.isSurprise?'⚡ Sorpresa en subasta':'En subasta'}</span>`:
+      `<span class="player-card-status status-available">${p.isSurprise?'⚡ Sorpresa':'Disponible'}</span>`;
     return `<div class="player-card ${sc}">
       <div class="player-card-name">${p.name}</div>${sl}
       ${p.status==='sold'?`<div style="font-size:10px;color:var(--gold-light)">${getTeamById(p.soldTo)?.name||'?'} · ${p.soldPrice.toLocaleString()}</div>`:''}
-      ${p.status==='available'&&!isLive&&!localState.auction?`<button class="btn-start-auction" onclick="startAuction(${p.id})">Iniciar subasta</button>`:''}
+      ${p.status==='available'&&!isLive&&!localState.auction?`<button class="btn-start-auction" onclick="startAuction('${p.id}')">Iniciar subasta</button>`:''}
     </div>`;
   }).join('');
 }
@@ -573,18 +580,38 @@ window.applyExtensionConfig=function(){
   document.getElementById('cfg-ext-display').textContent=val+'s';
 };
 
+window.startSurpriseAuction=async function(){
+  const nameInput=document.getElementById('surprise-name');
+  const name=nameInput.value.trim();
+  if(!name){alert('Ingresa el nombre del jugador sorpresa.');return}
+  if(localState.auction){alert('Ya hay una subasta en curso.');return}
+  // Add surprise player to players list in DB
+  const surpriseId='surprise_'+Date.now();
+  const surprisePlayer={id:surpriseId,name,status:'available',soldTo:null,soldPrice:0,isSurprise:true};
+  await set(ref(db,'players/'+surpriseId), surprisePlayer);
+  await set(ref(db,'auction'),{id:Date.now(),playerId:surpriseId,currentBid:500,leadTeamId:null,timeLeft:TIMER_SECONDS,isSurprise:true});
+  nameInput.value='';
+};
+
 window.startAuction=async function(playerId){
   if(localState.auction){alert('Ya hay una subasta en curso.');return}
-  await set(ref(db,'auction'),{id:Date.now(),playerId,currentBid:500,leadTeamId:null,timeLeft:TIMER_SECONDS});
+  await set(ref(db,'auction'),{id:Date.now(),playerId:playerId,currentBid:500,leadTeamId:null,timeLeft:TIMER_SECONDS,isSurprise:false});
 };
 
 window.endCurrentAuction=async function(){
   if(!localState.auction) return;
-  if(localState.auction.leadTeamId===null||localState.auction.leadTeamId===undefined){
-    alert('Nadie pujó. Cancela si quieres saltar este jugador.');return;
-  }
   clearInterval(timerInterval);
-  const player=localState.players.find(p=>p.id===localState.auction.playerId);
+  // Nobody bid → mark as free agent
+  if(localState.auction.leadTeamId===null||localState.auction.leadTeamId===undefined){
+    const player=localState.players.find(p=>String(p.id)===String(localState.auction.playerId));
+    if(player){
+      await set(ref(db,`players/${player.id}`),{...player,status:'freeagent'});
+      showFreeAgentBanner(player.name);
+    }
+    await set(ref(db,'auction'),null);
+    return;
+  }
+  const player=localState.players.find(p=>String(p.id)===String(localState.auction.playerId));
   const team=getTeamById(localState.auction.leadTeamId);
   if(!player||!team) return;
   await set(ref(db,`players/${player.id}`),{...player,status:'sold',soldTo:team.id,soldPrice:localState.auction.currentBid});
@@ -608,7 +635,18 @@ window.resetAll=async function(){
   await set(ref(db,'bids'),null);
 };
 
+function showFreeAgentBanner(playerName){
+  document.getElementById('sold-price').textContent='Agencia Libre';
+  document.getElementById('sold-text').innerHTML=`<strong>${playerName}</strong><br>no fue adquirido por ningún equipo.<br><span style="color:var(--muted);font-size:12px">Queda disponible como agente libre.</span>`;
+  document.getElementById('sold-banner').querySelector('h2').textContent='AGENCIA LIBRE';
+  document.getElementById('sold-banner').querySelector('div').textContent='🏳️';
+  document.getElementById('sold-overlay').classList.add('show');
+  document.getElementById('sold-banner').classList.add('show');
+}
+
 function showSoldBanner(playerName,teamName,price,color){
+  document.getElementById('sold-banner').querySelector('h2').textContent='¡VENDIDO!';
+  document.getElementById('sold-banner').querySelector('div').textContent='⚡';
   document.getElementById('sold-price').textContent=price.toLocaleString();
   document.getElementById('sold-text').innerHTML=`<strong>${playerName}</strong><br>adquirido por <strong style="color:${color}">${teamName}</strong>`;
   document.getElementById('sold-overlay').classList.add('show');
@@ -648,6 +686,7 @@ function renderRosters(){
 function updateStats(){
   const sold=localState.players.filter(p=>p.status==='sold').length;
   const avail=localState.players.filter(p=>p.status==='available').length;
+  const freeagents=localState.players.filter(p=>p.status==='freeagent').length;
   const spent=localState.teams.reduce((s,t)=>s+(BUDGET-t.budget),0);
   const s1=document.getElementById('stat-sold');
   const s2=document.getElementById('stat-avail');
