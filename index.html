@@ -836,12 +836,12 @@ function renderRosterSteals(el, teams, userTeam){
         ${drafted.map(p=>{
           const stealCost = p.price + 5000;
           const myT = userTeam;
-          const canS = myT && !isMyTeam && canSteal(myT) && !localState.auction;
+          const canS = myT && !isMyTeam && canSteal(myT);
           const stealBtn = (!isAdmin && myT && !isMyTeam)
-            ? `<button class="btn-steal" ${!canS?'disabled title="Sin robo disponible o subasta activa"':''} onclick="openSteal('${p.id}','${t.id}','${p.name}',${p.price})">🎯 ${stealCost.toLocaleString()}</button>`
+            ? `<button class="btn-steal" ${!canS?'disabled title="Sin robo disponible"':''} onclick="openSteal('${p.id}','${t.id}','${p.name}',${p.price})">🎯 ${stealCost.toLocaleString()}</button>`
             : '';
           const myDrafted = myT ? (myT.players||[]).filter(pl=>!pl.fixed) : [];
-          const tradeBtn = (!isAdmin && myT && !isMyTeam && myDrafted.length > 0 && !localState.auction)
+          const tradeBtn = (!isAdmin && myT && !isMyTeam && myDrafted.length > 0)
             ? `<button class="btn-steal" style="background:#001A1A;border-color:#1ABC9C;color:#76D7C4" onclick="openTrade('${t.id}','${p.id}')">🔄 Trade</button>`
             : '';
           return `<div class="roster-player">
@@ -856,7 +856,6 @@ function renderRosterSteals(el, teams, userTeam){
 }
 
 window.openSteal=function(playerId, fromTeamId, playerName, originalPrice){
-  if(localState.auction){alert('No puedes robar durante una subasta activa.');return}
   const myTeam = getUserTeam();
   if(!myTeam){return}
   if(myTeam.stolenUsed){alert('Ya usaste tu robo. Solo se puede robar una vez por equipo.');return}
@@ -872,7 +871,6 @@ window.openSteal=function(playerId, fromTeamId, playerName, originalPrice){
 
 window.confirmSteal=async function(){
   if(!pendingSteal) return;
-  if(localState.auction){alert('No puedes robar durante una subasta activa.');closeModal('modal-steal');return}
   const myTeam = getUserTeam();
   const fromTeam = localState.teams.find(t=>t.id===pendingSteal.fromTeamId);
   const player = localState.players.find(p=>String(p.id)===String(pendingSteal.playerId));
@@ -1018,7 +1016,6 @@ function renderRosters(){
 let pendingTrade = null;
 
 window.openTrade = function(theirTeamId, theirPlayerId){
-  if(localState.auction){alert('No puedes proponer trades durante una subasta activa.');return}
   const myTeam = getUserTeam();
   if(!myTeam) return;
   const theirTeam = localState.teams.find(t=>String(t.id)===String(theirTeamId));
@@ -1070,7 +1067,6 @@ function updateTradeSummary(myTeam, theirTeam){
 
 // Send trade REQUEST (no immediate execution)
 window.confirmTrade = async function(){
-  if(localState.auction){alert('No puedes proponer trades durante una subasta activa.');closeModal('modal-trade');return}
   const myTeam = getUserTeam();
   if(!myTeam||!pendingTrade) return;
 
@@ -1163,7 +1159,6 @@ async function executeTrade(req){
 window.acceptTrade = async function(reqId){
   const req = localState.tradeRequests.find(r=>r.id===reqId);
   if(!req||req.status!=='pending') return;
-  if(localState.auction){alert('No puedes aceptar trades durante una subasta activa.');return}
   await executeTrade(req);
 };
 
