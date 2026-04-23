@@ -574,7 +574,7 @@ function renderTeamsMini(){
   const el=document.getElementById('teams-mini');
   if(!el) return;
   el.innerHTML=localState.teams.map(t=>{
-    const pct=Math.min(100,Math.max(0,Math.round((t.budget/BUDGET)*100)));
+    const pct=Math.max(0,Math.round((t.budget/BUDGET)*100));
     const isActive=localState.auction&&localState.auction.leadTeamId===t.id;
     const drafted=(t.players||[]).filter(p=>!p.fixed).length;
     return `<div class="team-mini-card ${isActive?'active-team':''}">
