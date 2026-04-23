@@ -609,7 +609,7 @@ function renderAuction(){
   const recentBids=(localState.bids||[]).filter(b=>b.auctionId===localState.auction.id).slice(-6).reverse();
 
   // Only do a full rebuild when the auction itself changes (new player, canBid state)
-  const renderKey = localState.auction.id+'|'+canBid;
+  const renderKey = String(localState.auction.id);
   if(renderKey !== _lastAuctionRenderKey){
     _lastAuctionRenderKey = renderKey;
     el.innerHTML=`
@@ -897,6 +897,10 @@ window.confirmSteal=async function(){
   const player = localState.players.find(p=>String(p.id)===String(pendingSteal.playerId));
   if(!myTeam||!fromTeam||!player){closeModal('modal-steal');return}
   const cost = pendingSteal.cost;
+  if(myTeam.budget - cost < 0){
+    alert('No puedes robar: tu presupuesto quedaría negativo ('+myTeam.budget.toLocaleString()+' - '+cost.toLocaleString()+' = '+(myTeam.budget-cost).toLocaleString()+').');
+    closeModal('modal-steal'); return;
+  }
   // Remove player from fromTeam, refund original price to fromTeam
   const fromNewPlayers = (fromTeam.players||[]).filter(p=>String(p.id)!==String(pendingSteal.playerId));
   await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + pendingSteal.originalPrice, players: fromNewPlayers});
@@ -1083,8 +1087,6 @@ function updateTradeSummary(myTeam, theirTeam){
   ];
   if(moneyDir==='send'&&moneyAmt>0){
     parts[0] += ` + <span style="color:var(--gold-light)">${moneyAmt.toLocaleString()} 💰</span>`;
-    const afterSend = myTeam.budget - moneyAmt;
-    parts[0] += ` <span style="font-size:10px;color:${afterSend<0?'#E74C3C':'var(--muted)'}">(presupuesto restante: ${afterSend.toLocaleString()})</span>`;
   }
   if(moneyDir==='receive'&&moneyAmt>0){
     parts[1] += ` + <span style="color:var(--gold-light)">${moneyAmt.toLocaleString()} 💰</span>`;
@@ -1110,9 +1112,9 @@ window.confirmTrade = async function(){
   const theirPlayerInRoster = (theirTeam.players||[]).find(p=>String(p.id)===String(theirPlayerId));
   if(!myPlayerInRoster||!theirPlayerInRoster){alert('Error de roster.');return}
 
-  // Validate money: sender can't go below 0
+  // Validate: sender of money can't go negative
   if(moneyDir==='send'&&moneyAmt>0&&myTeam.budget-moneyAmt<0){
-    alert('No tienes suficiente presupuesto para enviar '+moneyAmt.toLocaleString()+' monedas. Tu presupuesto: '+myTeam.budget.toLocaleString());return;
+    alert('No puedes enviar '+moneyAmt.toLocaleString()+' monedas: tu presupuesto quedaría negativo ('+myTeam.budget.toLocaleString()+' disponible).');return;
   }
 
   // Check for duplicate pending trade between same teams
@@ -1196,8 +1198,13 @@ async function executeTrade(req){
 window.acceptTrade = async function(reqId){
   const req = localState.tradeRequests.find(r=>r.id===reqId);
   if(!req||req.status!=='pending') return;
-  // If the proposer asked to RECEIVE money, the acceptor (toTeam) pays it — check their budget
+  const fromTeam = localState.teams.find(t=>t.id===req.fromTeamId);
   const toTeam = localState.teams.find(t=>t.id===req.toTeamId);
+  // moneyDir 'send': fromTeam pays → check fromTeam budget
+  if(req.moneyDir==='send'&&req.moneyAmt>0&&fromTeam&&fromTeam.budget-req.moneyAmt<0){
+    alert('El equipo proponente ('+fromTeam.name+') no tiene suficiente presupuesto para enviar '+req.moneyAmt.toLocaleString()+' monedas.');return;
+  }
+  // moneyDir 'receive': toTeam pays → check toTeam budget
   if(req.moneyDir==='receive'&&req.moneyAmt>0&&toTeam&&toTeam.budget-req.moneyAmt<0){
     alert('No tienes suficiente presupuesto para pagar '+req.moneyAmt.toLocaleString()+' monedas. Tu presupuesto: '+toTeam.budget.toLocaleString());return;
   }
