@@ -588,10 +588,13 @@ function renderTeamsMini(){
   }).join('');
 }
 
+let _lastAuctionRenderKey = null;
+
 function renderAuction(){
   const el=document.getElementById('auction-main');
   if(!el) return;
   if(!localState.auction){
+    _lastAuctionRenderKey = null;
     el.innerHTML=`<div class="no-auction"><div class="icon">⏳</div><p>Esperando que el admin<br>inicie la próxima subasta...</p></div>`;
     return;
   }
@@ -601,43 +604,60 @@ function renderAuction(){
   const userTeam=getUserTeam();
   const canBid=userTeam&&userTeam.budget>(localState.auction.currentBid||0)&&!isAdmin;
   const timeLeft=localState.auction.timeLeft??TIMER_SECONDS;
-  const timePct=(timeLeft/TIMER_SECONDS)*100;
+  const timePct=Math.min(100,(timeLeft/TIMER_SECONDS)*100);
   const urgent=timeLeft<=10;
   const recentBids=(localState.bids||[]).filter(b=>b.auctionId===localState.auction.id).slice(-6).reverse();
-  el.innerHTML=`
-    <div class="current-player-card">
-      <div class="player-avatar">${getInitials(player.name)}</div>
-      <div class="player-name">${player.name}</div>
-      <div class="player-number">Jugador disponible para draft</div>
-      <div class="current-bid-label">Puja actual</div>
-      <div class="current-bid">${(localState.auction.currentBid||500).toLocaleString()}</div>
-      ${leader?`<div class="bid-leader" style="border-color:${leader.color};color:${leader.color}">Líder: ${leader.name}</div>`:'<div class="bid-leader">Sin pujas aún</div>'}
-      <div class="countdown ${urgent?'urgent':''}">${timeLeft}s</div>
-      <div class="timer-bar"><div class="timer-fill ${urgent?'urgent':''}" style="width:${timePct}%"></div></div>
-    </div>
-    ${canBid?`
-    <div class="bid-controls">
-      <h3>REALIZAR PUJA — ${userTeam.name}</h3>
-      <div class="bid-amounts">
-        ${[250,500,1000,2000].map(a=>`<button class="bid-btn" onclick="placeBid(${(localState.auction.currentBid||500)+a})">+${formatK(a)}</button>`).join('')}
+
+  // Only do a full rebuild when the auction itself changes (new player, canBid state)
+  const renderKey = localState.auction.id+'|'+canBid;
+  if(renderKey !== _lastAuctionRenderKey){
+    _lastAuctionRenderKey = renderKey;
+    el.innerHTML=`
+      <div class="current-player-card">
+        <div class="player-avatar">${getInitials(player.name)}</div>
+        <div class="player-name">${player.name}</div>
+        <div class="player-number">Jugador disponible para draft</div>
+        <div class="current-bid-label">Puja actual</div>
+        <div id="live-bid-amount" class="current-bid">${(localState.auction.currentBid||500).toLocaleString()}</div>
+        <div id="live-bid-leader">${leader?`<div class="bid-leader" style="border-color:${leader.color};color:${leader.color}">Líder: ${leader.name}</div>`:'<div class="bid-leader">Sin pujas aún</div>'}</div>
+        <div id="live-countdown" class="countdown ${urgent?'urgent':''}">${timeLeft}s</div>
+        <div class="timer-bar"><div id="live-timer-fill" class="timer-fill ${urgent?'urgent':''}" style="width:${timePct}%"></div></div>
       </div>
-      <div class="bid-custom">
-        <input type="text" inputmode="numeric" id="custom-bid" placeholder="Monto personalizado"/>
-        <button class="btn-primary" style="width:auto;padding:8px 14px" onclick="placeCustomBid()">Pujar</button>
-      </div>
-      <div style="font-size:11px;color:var(--muted)">Presupuesto: ${userTeam.budget.toLocaleString()} · Mínimo: ${((localState.auction.currentBid||500)+100).toLocaleString()}</div>
-    </div>`:`<div class="alert-info">${isAdmin?'Modo admin — observas las pujas.':'Conecta tu equipo para pujar.'}</div>`}
-    <div class="bid-history">
-      <h3>HISTORIAL DE PUJAS</h3>
-      ${recentBids.length?recentBids.map(b=>{
-        const bt=getTeamById(b.teamId);
-        return `<div class="bid-entry">
-          <span style="color:${bt?bt.color:'#888'}">${bt?bt.name:'?'}</span>
-          <span class="bid-entry-amount">${b.amount.toLocaleString()}</span>
-          <span class="bid-entry-time">${b.time||''}</span>
-        </div>`;
-      }).join(''):'<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px">Sin pujas aún</div>'}
-    </div>`;
+      ${canBid?`
+      <div class="bid-controls">
+        <h3>REALIZAR PUJA — ${userTeam.name}</h3>
+        <div id="live-bid-buttons" class="bid-amounts">
+          ${[250,500,1000,2000].map(a=>`<button class="bid-btn" onclick="placeBid(${(localState.auction.currentBid||500)+a})">+${formatK(a)}</button>`).join('')}
+        </div>
+        <div class="bid-custom">
+          <input type="text" inputmode="numeric" id="custom-bid" placeholder="Monto personalizado"/>
+          <button class="btn-primary" style="width:auto;padding:8px 14px" onclick="placeCustomBid()">Pujar</button>
+        </div>
+        <div id="live-budget-line" style="font-size:11px;color:var(--muted)">Presupuesto: ${userTeam.budget.toLocaleString()}</div>
+      </div>`:`<div class="alert-info">${isAdmin?'Modo admin — observas las pujas.':'Conecta tu equipo para pujar.'}</div>`}
+      <div class="bid-history">
+        <h3>HISTORIAL DE PUJAS</h3>
+        <div id="live-bid-history"></div>
+      </div>`;
+  }
+
+  // Always update only the dynamic parts (timer, bid, leader, history) without touching the input
+  const bidAmountEl=document.getElementById('live-bid-amount');
+  const leaderEl=document.getElementById('live-bid-leader');
+  const countdownEl=document.getElementById('live-countdown');
+  const timerFillEl=document.getElementById('live-timer-fill');
+  const bidBtnsEl=document.getElementById('live-bid-buttons');
+  const historyEl=document.getElementById('live-bid-history');
+
+  if(bidAmountEl) bidAmountEl.textContent=(localState.auction.currentBid||500).toLocaleString();
+  if(leaderEl) leaderEl.innerHTML=leader?`<div class="bid-leader" style="border-color:${leader.color};color:${leader.color}">Líder: ${leader.name}</div>`:'<div class="bid-leader">Sin pujas aún</div>';
+  if(countdownEl){countdownEl.textContent=timeLeft+'s';countdownEl.className='countdown'+(urgent?' urgent':'');}
+  if(timerFillEl){timerFillEl.style.width=timePct+'%';timerFillEl.className='timer-fill'+(urgent?' urgent':'');}
+  if(bidBtnsEl) bidBtnsEl.innerHTML=[250,500,1000,2000].map(a=>`<button class="bid-btn" onclick="placeBid(${(localState.auction.currentBid||500)+a})">+${formatK(a)}</button>`).join('');
+  if(historyEl) historyEl.innerHTML=recentBids.length?recentBids.map(b=>{
+    const bt=getTeamById(b.teamId);
+    return `<div class="bid-entry"><span style="color:${bt?bt.color:'#888'}">${bt?bt.name:'?'}</span><span class="bid-entry-amount">${b.amount.toLocaleString()}</span><span class="bid-entry-time">${b.time||''}</span></div>`;
+  }).join(''):'<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px">Sin pujas aún</div>';
 }
 
 window.placeBid=async function(amount){
