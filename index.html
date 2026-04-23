@@ -622,7 +622,7 @@ function renderAuction(){
         ${[250,500,1000,2000].map(a=>`<button class="bid-btn" onclick="placeBid(${(localState.auction.currentBid||500)+a})">+${formatK(a)}</button>`).join('')}
       </div>
       <div class="bid-custom">
-        <input type="number" id="custom-bid" placeholder="Ej: ${userTeam.budget.toLocaleString()}" min="1" max="${userTeam.budget}" step="100"/>
+        <input type="text" inputmode="numeric" id="custom-bid" placeholder="Monto personalizado"/>
         <button class="btn-primary" style="width:auto;padding:8px 14px" onclick="placeCustomBid()">Pujar</button>
       </div>
       <div style="font-size:11px;color:var(--muted)">Presupuesto: ${userTeam.budget.toLocaleString()} · Mínimo: ${((localState.auction.currentBid||500)+100).toLocaleString()}</div>
@@ -660,9 +660,10 @@ window.placeBid=async function(amount){
 };
 
 window.placeCustomBid=function(){
-  const val=parseInt(document.getElementById('custom-bid')?.value);
+  const raw=document.getElementById('custom-bid')?.value.replace(/[^0-9]/g,'');
+  const val=parseInt(raw);
   const team=getUserTeam();
-  if(!val||isNaN(val)||val<=0){alert('Ingresa un monto válido');return}
+  if(!val||isNaN(val)||val<=0){alert('Ingresa un monto mayor a 0.');return}
   if(team&&val>team.budget){alert('No puedes pujar más de tu presupuesto disponible: '+team.budget.toLocaleString());return}
   window.placeBid(val);
 };
@@ -1060,8 +1061,14 @@ function updateTradeSummary(myTeam, theirTeam){
     `<strong style="color:${myTeam.color}">${myTeam.name}</strong> da: <strong>${myPlayer.name}</strong>`,
     `<strong style="color:${theirTeam.color}">${theirTeam.name}</strong> da: <strong>${theirPlayer.name}</strong>`
   ];
-  if(moneyDir==='send'&&moneyAmt>0) parts[0] += ` + <span style="color:var(--gold-light)">${moneyAmt.toLocaleString()}</span>`;
-  if(moneyDir==='receive'&&moneyAmt>0) parts[1] += ` + <span style="color:var(--gold-light)">${moneyAmt.toLocaleString()}</span>`;
+  if(moneyDir==='send'&&moneyAmt>0){
+    parts[0] += ` + <span style="color:var(--gold-light)">${moneyAmt.toLocaleString()} 💰</span>`;
+    const afterSend = myTeam.budget - moneyAmt;
+    parts[0] += ` <span style="font-size:10px;color:${afterSend<0?'#E74C3C':'var(--muted)'}">(presupuesto restante: ${afterSend.toLocaleString()})</span>`;
+  }
+  if(moneyDir==='receive'&&moneyAmt>0){
+    parts[1] += ` + <span style="color:var(--gold-light)">${moneyAmt.toLocaleString()} 💰</span>`;
+  }
   document.getElementById('trade-summary').innerHTML = parts.join('<br>');
 }
 
@@ -1082,6 +1089,11 @@ window.confirmTrade = async function(){
   const myPlayerInRoster = (myTeam.players||[]).find(p=>String(p.id)===String(myPlayerId));
   const theirPlayerInRoster = (theirTeam.players||[]).find(p=>String(p.id)===String(theirPlayerId));
   if(!myPlayerInRoster||!theirPlayerInRoster){alert('Error de roster.');return}
+
+  // Validate money: sender can't go below 0
+  if(moneyDir==='send'&&moneyAmt>0&&myTeam.budget-moneyAmt<0){
+    alert('No tienes suficiente presupuesto para enviar '+moneyAmt.toLocaleString()+' monedas. Tu presupuesto: '+myTeam.budget.toLocaleString());return;
+  }
 
   // Check for duplicate pending trade between same teams
   const existing = localState.tradeRequests.find(r=>
@@ -1127,10 +1139,15 @@ async function executeTrade(req){
   const toPlayerInRoster = (toTeam.players||[]).find(p=>String(p.id)===String(req.theirPlayerId));
   if(!fromPlayerInRoster||!toPlayerInRoster){alert('Error: jugadores ya no están disponibles.');return}
 
-  const fromNewBudget = fromTeam.budget + fromPlayerInRoster.price - toPlayerInRoster.price
-    - (req.moneyDir==='send'?req.moneyAmt:0) + (req.moneyDir==='receive'?req.moneyAmt:0);
-  const toNewBudget = toTeam.budget + toPlayerInRoster.price - fromPlayerInRoster.price
-    - (req.moneyDir==='receive'?req.moneyAmt:0) + (req.moneyDir==='send'?req.moneyAmt:0);
+  // Budgets only change by the extra money, NOT by player prices (pure swap)
+  // moneyDir 'send': fromTeam pays moneyAmt to toTeam
+  // moneyDir 'receive': toTeam pays moneyAmt to fromTeam
+  const fromNewBudget = fromTeam.budget
+    - (req.moneyDir==='send'?req.moneyAmt:0)
+    + (req.moneyDir==='receive'?req.moneyAmt:0);
+  const toNewBudget = toTeam.budget
+    - (req.moneyDir==='receive'?req.moneyAmt:0)
+    + (req.moneyDir==='send'?req.moneyAmt:0);
 
   const fromNewPlayers = (fromTeam.players||[])
     .filter(p=>String(p.id)!==String(req.myPlayerId))
@@ -1159,6 +1176,11 @@ async function executeTrade(req){
 window.acceptTrade = async function(reqId){
   const req = localState.tradeRequests.find(r=>r.id===reqId);
   if(!req||req.status!=='pending') return;
+  // If the proposer asked to RECEIVE money, the acceptor (toTeam) pays it — check their budget
+  const toTeam = localState.teams.find(t=>t.id===req.toTeamId);
+  if(req.moneyDir==='receive'&&req.moneyAmt>0&&toTeam&&toTeam.budget-req.moneyAmt<0){
+    alert('No tienes suficiente presupuesto para pagar '+req.moneyAmt.toLocaleString()+' monedas. Tu presupuesto: '+toTeam.budget.toLocaleString());return;
+  }
   await executeTrade(req);
 };
 
