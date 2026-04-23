@@ -583,7 +583,7 @@ function renderTeamsMini(){
         <div class="team-mini-budget">${t.budget.toLocaleString()}</div>
       </div>
       <div class="team-mini-bar"><div class="team-mini-fill" style="width:${pct}%;background:${t.color}"></div></div>
-      <div class="team-mini-players">${drafted}/5 drafteados · ${5-drafted} libres</div>
+      <div class="team-mini-players">${drafted}/4 drafteados · ${4-drafted} libres</div>
     </div>`;
   }).join('');
 }
@@ -622,7 +622,7 @@ function renderAuction(){
         ${[250,500,1000,2000].map(a=>`<button class="bid-btn" onclick="placeBid(${(localState.auction.currentBid||500)+a})">+${formatK(a)}</button>`).join('')}
       </div>
       <div class="bid-custom">
-        <input type="number" id="custom-bid" placeholder="Monto personalizado" min="${(localState.auction.currentBid||500)+100}" step="100"/>
+        <input type="number" id="custom-bid" placeholder="Ej: ${userTeam.budget.toLocaleString()}" min="1" max="${userTeam.budget}" step="100"/>
         <button class="btn-primary" style="width:auto;padding:8px 14px" onclick="placeCustomBid()">Pujar</button>
       </div>
       <div style="font-size:11px;color:var(--muted)">Presupuesto: ${userTeam.budget.toLocaleString()} · Mínimo: ${((localState.auction.currentBid||500)+100).toLocaleString()}</div>
@@ -661,7 +661,9 @@ window.placeBid=async function(amount){
 
 window.placeCustomBid=function(){
   const val=parseInt(document.getElementById('custom-bid')?.value);
-  if(!val||isNaN(val)){alert('Ingresa un monto válido');return}
+  const team=getUserTeam();
+  if(!val||isNaN(val)||val<=0){alert('Ingresa un monto válido');return}
+  if(team&&val>team.budget){alert('No puedes pujar más de tu presupuesto disponible: '+team.budget.toLocaleString());return}
   window.placeBid(val);
 };
 
@@ -818,7 +820,7 @@ function renderRosterSteals(el, teams, userTeam){
   el.innerHTML = teams.map(t=>{
     const fixed=(t.players||[]).filter(p=>p.fixed);
     const drafted=(t.players||[]).filter(p=>!p.fixed);
-    const slots=Math.max(0,5-drafted.length);
+    const slots=Math.max(0,4-drafted.length);
     const isMyTeam = userTeam && t.id===userTeam.id;
     return `<div class="roster-card" style="border-top:3px solid ${t.color}">
       <div class="roster-card-header">
