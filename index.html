@@ -897,13 +897,9 @@ window.confirmSteal=async function(){
   const player = localState.players.find(p=>String(p.id)===String(pendingSteal.playerId));
   if(!myTeam||!fromTeam||!player){closeModal('modal-steal');return}
   const cost = pendingSteal.cost;
-  if(myTeam.budget - cost < 0){
-    alert('No puedes robar: tu presupuesto quedaría negativo ('+myTeam.budget.toLocaleString()+' - '+cost.toLocaleString()+' = '+(myTeam.budget-cost).toLocaleString()+').');
-    closeModal('modal-steal'); return;
-  }
   // Remove player from fromTeam, refund original price to fromTeam
   const fromNewPlayers = (fromTeam.players||[]).filter(p=>String(p.id)!==String(pendingSteal.playerId));
-  await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + pendingSteal.originalPrice, players: fromNewPlayers});
+  await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + cost, players: fromNewPlayers});
   // Add player to myTeam
   const myNewPlayers = [...(myTeam.players||[]), {id:player.id, name:player.name, price:cost, fixed:false, stolen:true}];
   await set(ref(db,`teams/${myTeam.id}`),{...myTeam, budget: myTeam.budget - cost, players: myNewPlayers, stolenUsed: true});
