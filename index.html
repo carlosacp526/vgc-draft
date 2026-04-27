@@ -272,9 +272,8 @@ h1,h2,h3{font-family:'Cinzel',serif}
 </div>
 
   <!-- ENFRENTAMIENTOS PANEL -->
-  <div id="tab-enf" class="panel" style="align-items:flex-start">
+  <div id="tab-enf" class="panel" style="display:none;flex-direction:column;align-items:stretch">
     <div style="padding:16px;max-width:960px;margin:0;width:100%">
-
       <!-- Sub-tabs -->
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px" id="enf-subtabs">
         <div class="enf-stab active" onclick="showEnfTab('jornadas')">⚔️ Jornadas</div>
@@ -619,9 +618,11 @@ document.getElementById('pw-code').addEventListener('keydown',e=>{if(e.key==='En
 window.showTab=function(tab){
   const tabs=['auction','rosters','trades','enf','admin'];
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>{p.classList.remove('active');p.style.display='none';});
   document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
-  document.getElementById('tab-'+tab).classList.add('active');
+  const panel=document.getElementById('tab-'+tab);
+  panel.classList.add('active');
+  panel.style.display='flex';
   if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
 };
 
@@ -1808,9 +1809,14 @@ function enfRenderDuels(matchId, ht, at, hPlayers, aPlayers){
   const list=document.getElementById('enf-duels-list');
   list.innerHTML='';
 
-  // Player option lists
-  const hOpts='<option value="">-- Elige --</option>'+hPlayers.map(function(p){return '<option value="'+p.id+'">'+p.name+(p.fixed?' ('+p.role+')':'')+'</option>';}).join('');
-  const aOpts='<option value="">-- Elige --</option>'+aPlayers.map(function(p){return '<option value="'+p.id+'">'+p.name+(p.fixed?' ('+p.role+')':'')+'</option>';}).join('');
+  // Only show players from the lineup for this match
+  const m2=enfState.matches[matchId];
+  const hLineupIds=enfGetLineup(m2&&m2.homeTeamId,m2&&m2.jornadaId);
+  const aLineupIds=enfGetLineup(m2&&m2.awayTeamId,m2&&m2.jornadaId);
+  const hLineupPlayers=hLineupIds.map(function(pid){return hPlayers.find(function(p){return String(p.id)===String(pid)});}).filter(Boolean);
+  const aLineupPlayers=aLineupIds.map(function(pid){return aPlayers.find(function(p){return String(p.id)===String(pid)});}).filter(Boolean);
+  const hOpts='<option value="">-- Elige --</option>'+(hLineupPlayers.length?hLineupPlayers:hPlayers).map(function(p){return '<option value="'+p.id+'">'+p.name+(p.fixed?' ('+p.role+')':'')+'</option>';}).join('');
+  const aOpts='<option value="">-- Elige --</option>'+(aLineupPlayers.length?aLineupPlayers:aPlayers).map(function(p){return '<option value="'+p.id+'">'+p.name+(p.fixed?' ('+p.role+')':'')+'</option>';}).join('');
 
   for(var i=0;i<6;i++){
     var idx=i;
