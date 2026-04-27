@@ -48,7 +48,6 @@ h1,h2,h3{font-family:'Cinzel',serif}
 .tab:hover:not(.active){color:var(--text)}
 .panel{display:none;flex:1;overflow:auto}
 .panel.active{display:flex;flex-direction:column}
-#tab-enf.active{display:block;overflow-y:auto}
 .auction-layout{display:grid;grid-template-columns:1fr 280px;gap:0;flex:1;min-height:0}
 @media(max-width:640px){.auction-layout{grid-template-columns:1fr}.auction-side{display:none}}
 .auction-main{padding:16px;overflow:auto;border-right:1px solid var(--border)}
@@ -274,15 +273,13 @@ h1,h2,h3{font-family:'Cinzel',serif}
 
   <!-- ENFRENTAMIENTOS PANEL -->
   <div id="tab-enf" class="panel">
-    <!-- Sub-tabs bar -->
-    <div style="padding:10px 16px 0;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap" id="enf-subtabs">
+    <div id="enf-subtabs" style="padding:8px 16px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0">
       <div class="enf-stab active" onclick="showEnfTab('jornadas')">⚔️ Jornadas</div>
       <div class="enf-stab" onclick="showEnfTab('lineup')">📋 Mi Lineup</div>
       <div class="enf-stab" onclick="showEnfTab('ladder')">🏆 Ladder</div>
       <div class="enf-stab admin-only" onclick="showEnfTab('enf-admin')" style="display:none">⚙️ Gestión</div>
     </div>
-    <!-- Content area -->
-    <div style="padding:14px 16px;width:100%;max-width:960px;box-sizing:border-box">
+    <div style="padding:14px 16px;flex:1;overflow:auto;min-height:0">
       <div id="enf-tab-jornadas">
         <div id="enf-jornada-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div id="enf-jornadas-content"></div>
@@ -615,7 +612,7 @@ window.showTab=function(tab){
   document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
   const panel=document.getElementById('tab-'+tab);
   panel.classList.add('active');
-  panel.style.display=(tab==='enf')?'block':'flex';
+  panel.style.display='flex';
   if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
 };
 
