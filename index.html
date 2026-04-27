@@ -31,7 +31,7 @@
 
 body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh}
 h1,h2,h3{font-family:'Cinzel',serif}
-.app{display:flex;flex-direction:column;min-height:100vh}
+.app{display:block;min-height:100vh}
 .header{background:linear-gradient(135deg,#0A0A0F 0%,#1A0A00 50%,#0A0A0F 100%);border-bottom:2px solid var(--gold);padding:12px 20px;display:flex;align-items:center;gap:16px}
 .header-logo{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;background:#1A0800;font-size:22px}
 .header-title{flex:1}
@@ -46,8 +46,8 @@ h1,h2,h3{font-family:'Cinzel',serif}
 .tab{padding:10px 18px;font-size:12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .2s;font-family:'Cinzel',serif;letter-spacing:.5px}
 .tab.active{color:var(--gold-light);border-bottom-color:var(--gold)}
 .tab:hover:not(.active){color:var(--text)}
-.panel{display:none;flex:1;overflow:auto}
-.panel.active{display:flex;flex-direction:column}
+.panel{display:none}
+.panel.active{display:block}
 .auction-layout{display:grid;grid-template-columns:1fr 280px;gap:0;flex:1;min-height:0}
 @media(max-width:640px){.auction-layout{grid-template-columns:1fr}.auction-side{display:none}}
 .auction-main{padding:16px;overflow:auto;border-right:1px solid var(--border)}
@@ -612,7 +612,7 @@ window.showTab=function(tab){
   document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
   const panel=document.getElementById('tab-'+tab);
   panel.classList.add('active');
-  panel.style.display='flex';
+  panel.style.display='block';
   if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
 };
 
