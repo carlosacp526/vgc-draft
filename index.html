@@ -48,6 +48,7 @@ h1,h2,h3{font-family:'Cinzel',serif}
 .tab:hover:not(.active){color:var(--text)}
 .panel{display:none;flex:1;overflow:auto}
 .panel.active{display:flex;flex-direction:column}
+#tab-enf.active{display:block;overflow-y:auto}
 .auction-layout{display:grid;grid-template-columns:1fr 280px;gap:0;flex:1;min-height:0}
 @media(max-width:640px){.auction-layout{grid-template-columns:1fr}.auction-side{display:none}}
 .auction-main{padding:16px;overflow:auto;border-right:1px solid var(--border)}
@@ -614,7 +615,7 @@ window.showTab=function(tab){
   document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
   const panel=document.getElementById('tab-'+tab);
   panel.classList.add('active');
-  panel.style.display='flex';
+  panel.style.display=(tab==='enf')?'block':'flex';
   if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
 };
 
