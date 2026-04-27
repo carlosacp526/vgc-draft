@@ -272,41 +272,34 @@ h1,h2,h3{font-family:'Cinzel',serif}
 </div>
 
   <!-- ENFRENTAMIENTOS PANEL -->
-  <div id="tab-enf" class="panel" style="display:none;flex-direction:column;align-items:stretch">
-    <div style="padding:16px;max-width:960px;margin:0;width:100%">
-      <!-- Sub-tabs -->
-      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px" id="enf-subtabs">
-        <div class="enf-stab active" onclick="showEnfTab('jornadas')">⚔️ Jornadas</div>
-        <div class="enf-stab" onclick="showEnfTab('lineup')">📋 Mi Lineup</div>
-        <div class="enf-stab" onclick="showEnfTab('ladder')">🏆 Ladder</div>
-        <div class="enf-stab admin-only" onclick="showEnfTab('enf-admin')" style="display:none">⚙️ Gestión</div>
-      </div>
-
-      <!-- Jornadas -->
+  <div id="tab-enf" class="panel">
+    <!-- Sub-tabs bar -->
+    <div style="padding:10px 16px 0;background:var(--surface);border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap" id="enf-subtabs">
+      <div class="enf-stab active" onclick="showEnfTab('jornadas')">⚔️ Jornadas</div>
+      <div class="enf-stab" onclick="showEnfTab('lineup')">📋 Mi Lineup</div>
+      <div class="enf-stab" onclick="showEnfTab('ladder')">🏆 Ladder</div>
+      <div class="enf-stab admin-only" onclick="showEnfTab('enf-admin')" style="display:none">⚙️ Gestión</div>
+    </div>
+    <!-- Content area -->
+    <div style="padding:14px 16px;width:100%;max-width:960px;box-sizing:border-box">
       <div id="enf-tab-jornadas">
-        <div class="jornada-tabs-enf" id="enf-jornada-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="enf-jornada-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div id="enf-jornadas-content"></div>
       </div>
-
-      <!-- Lineup -->
       <div id="enf-tab-lineup" style="display:none">
         <div id="enf-lineup-content"></div>
-        <div id="enf-lineup-bar" style="display:none;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:none;align-items:center;justify-content:space-between;font-size:12px">
+        <div id="enf-lineup-bar" style="display:none;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;align-items:center;justify-content:space-between;font-size:12px">
           <span id="enf-lineup-count" style="color:var(--muted)"></span>
           <button class="btn-primary" style="padding:8px 20px" onclick="enfSaveLineup()">Guardar Lineup</button>
         </div>
       </div>
-
-      <!-- Ladder -->
       <div id="enf-tab-ladder" style="display:none">
-        <div id="enf-ladder-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="enf-ladder-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px"></div>
         <div id="enf-ladder-content"></div>
       </div>
-
-      <!-- Admin gestión -->
       <div id="enf-tab-enf-admin" style="display:none">
-        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px;display:flex;justify-content:space-between;align-items:center">
-          <span>⚙️ Gestión de Enfrentamientos</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span style="font-size:13px;color:var(--gold-light);font-family:'Cinzel',serif">⚙️ Gestión de Enfrentamientos</span>
           <div style="display:flex;gap:6px">
             <button class="btn-secondary" style="padding:6px 12px;font-size:11px" onclick="enfOpenRenameModal()">✏️ Renombrar jugador</button>
             <button class="btn-primary" style="padding:6px 12px;font-size:11px" onclick="enfOpenCreateJornada()">+ Jornada</button>
@@ -314,7 +307,6 @@ h1,h2,h3{font-family:'Cinzel',serif}
         </div>
         <div id="enf-admin-content"></div>
       </div>
-
     </div>
   </div>
 
