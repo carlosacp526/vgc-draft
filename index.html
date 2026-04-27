@@ -12,6 +12,23 @@
   --bg:#0A0A0F;--surface:#12121A;--surface2:#1A1A26;
   --border:#2A2A40;--text:#E8E4D0;--muted:#888;
 }
+/* ── ENFRENTAMIENTOS ─────────────────────────────────────────── */
+.enf-stab{padding:6px 14px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:var(--surface2);transition:all .2s;font-family:'Cinzel',serif}
+.enf-stab.active{border-color:var(--gold);color:var(--gold-light);background:#1A1000}
+.enf-jtab{padding:5px 12px;border-radius:20px;font-size:11px;cursor:pointer;border:1px solid var(--border);color:var(--muted);background:var(--surface2);transition:all .2s;font-family:'Cinzel',serif}
+.enf-jtab.active{border-color:var(--gold);color:var(--gold-light);background:#1A1000}
+.match-card-enf{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:8px}
+.match-team-enf{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.lineup-grid-enf{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}
+.lineup-player-enf{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;cursor:pointer;transition:all .2s;font-size:11px}
+.lineup-player-enf.selected{border-color:var(--gold);background:#1A1000;color:var(--gold-light)}
+.enf-ladder-table{width:100%;border-collapse:collapse}
+.enf-ladder-table th{font-size:10px;color:var(--muted);padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);font-family:'Cinzel',serif}
+.enf-ladder-table td{padding:7px 8px;font-size:12px;border-bottom:1px solid var(--border)}
+.enf-ladder-table tr:last-child td{border-bottom:none}
+.enf-ladder-table tr:hover td{background:var(--surface2)}
+.enf-pts{display:inline-block;padding:2px 8px;background:#1A1000;border:1px solid var(--gold-dark);border-radius:10px;color:var(--gold-light);font-weight:600;font-size:12px}
+
 body{background:var(--bg);color:var(--text);font-family:'Exo 2',sans-serif;min-height:100vh}
 h1,h2,h3{font-family:'Cinzel',serif}
 .app{display:flex;flex-direction:column;min-height:100vh}
@@ -175,6 +192,7 @@ h1,h2,h3{font-family:'Cinzel',serif}
     <div class="tab active" onclick="showTab('auction')">🎯 Subasta</div>
     <div class="tab" onclick="showTab('rosters')">👥 Equipos</div>
     <div class="tab" onclick="showTab('trades')" id="tab-btn-trades">🔄 Trades <span id="trade-notif-badge" style="display:none;background:#E74C3C;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:2px">0</span></div>
+    <div class="tab" onclick="showTab('enf')">⚔️ Enfrentamientos</div>
     <div class="tab admin-only" onclick="showTab('admin')" style="display:none">⚙️ Admin</div>
   </div>
   <div id="tab-auction" class="panel active">
@@ -252,6 +270,55 @@ h1,h2,h3{font-family:'Cinzel',serif}
     </div>
   </div>
 </div>
+
+  <!-- ENFRENTAMIENTOS PANEL -->
+  <div id="tab-enf" class="panel">
+    <div style="padding:16px;max-width:960px;margin:0 auto;width:100%">
+
+      <!-- Sub-tabs -->
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px" id="enf-subtabs">
+        <div class="enf-stab active" onclick="showEnfTab('jornadas')">⚔️ Jornadas</div>
+        <div class="enf-stab" onclick="showEnfTab('lineup')">📋 Mi Lineup</div>
+        <div class="enf-stab" onclick="showEnfTab('ladder')">🏆 Ladder</div>
+        <div class="enf-stab admin-only" onclick="showEnfTab('enf-admin')" style="display:none">⚙️ Gestión</div>
+      </div>
+
+      <!-- Jornadas -->
+      <div id="enf-tab-jornadas">
+        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px">⚔️ Jornadas</div>
+        <div class="jornada-tabs-enf" id="enf-jornada-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="enf-jornadas-content"></div>
+      </div>
+
+      <!-- Lineup -->
+      <div id="enf-tab-lineup" style="display:none">
+        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px">📋 Mi Lineup por Jornada</div>
+        <div id="enf-lineup-content"></div>
+        <div id="enf-lineup-bar" style="display:none;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:none;align-items:center;justify-content:space-between;font-size:12px">
+          <span id="enf-lineup-count" style="color:var(--muted)"></span>
+          <button class="btn-primary" style="padding:8px 20px" onclick="enfSaveLineup()">Guardar Lineup</button>
+        </div>
+      </div>
+
+      <!-- Ladder -->
+      <div id="enf-tab-ladder" style="display:none">
+        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px">🏆 Tabla de Posiciones</div>
+        <div id="enf-ladder-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
+        <div id="enf-ladder-content"></div>
+      </div>
+
+      <!-- Admin gestión -->
+      <div id="enf-tab-enf-admin" style="display:none">
+        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+          <span>⚙️ Gestión de Enfrentamientos</span>
+          <button class="btn-primary" style="padding:6px 12px;font-size:11px" onclick="enfOpenCreateJornada()">+ Jornada</button>
+        </div>
+        <div id="enf-admin-content"></div>
+      </div>
+
+    </div>
+  </div>
+
 
 <div class="sold-overlay" id="sold-overlay" onclick="closeSoldBanner()"></div>
 <div class="sold-banner" id="sold-banner">
@@ -544,16 +611,18 @@ window.handleLogin=function(){
   document.getElementById('pw-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   updateHeaderBudget(); renderAll();
+  if(isAdmin) document.querySelectorAll('.enf-stab.admin-only').forEach(e=>e.style.display='');
 };
 document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter') document.getElementById('pw-code').focus()});
 document.getElementById('pw-code').addEventListener('keydown',e=>{if(e.key==='Enter') window.handleLogin()});
 
 window.showTab=function(tab){
-  const tabs=['auction','rosters','trades','admin'];
+  const tabs=['auction','rosters','trades','enf','admin'];
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='enf') enfRenderSubTab(enfActiveSubTab);
 };
 
 function updateHeaderBudget(){
@@ -897,14 +966,26 @@ window.confirmSteal=async function(){
   const player = localState.players.find(p=>String(p.id)===String(pendingSteal.playerId));
   if(!myTeam||!fromTeam||!player){closeModal('modal-steal');return}
   const cost = pendingSteal.cost;
-  // Remove player from fromTeam, refund original price to fromTeam
-  const fromNewPlayers = (fromTeam.players||[]).filter(p=>String(p.id)!==String(pendingSteal.playerId));
-  await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + cost, players: fromNewPlayers});
-  // Add player to myTeam
-  const myNewPlayers = [...(myTeam.players||[]), {id:player.id, name:player.name, price:cost, fixed:false, stolen:true}];
-  await set(ref(db,`teams/${myTeam.id}`),{...myTeam, budget: myTeam.budget - cost, players: myNewPlayers, stolenUsed: true});
+
+  // Read fresh budgets from Firebase to avoid stale state
+  const [fromSnap, mySnap] = await Promise.all([
+    get(ref(db,'teams/'+fromTeam.id)),
+    get(ref(db,'teams/'+myTeam.id))
+  ]);
+  const freshFrom = fromSnap.val();
+  const freshMy = mySnap.val();
+  if(!freshFrom||!freshMy){closeModal('modal-steal');return}
+
+  // Remove player from fromTeam, refund full cost to fromTeam
+  const fromNewPlayers = (freshFrom.players||[]).filter(p=>String(p.id)!==String(pendingSteal.playerId));
+  await set(ref(db,'teams/'+fromTeam.id),{...freshFrom, budget: freshFrom.budget + cost, players: fromNewPlayers});
+
+  // Add player to myTeam, deduct cost
+  const myNewPlayers = [...(freshMy.players||[]), {id:player.id, name:player.name, price:cost, fixed:false, stolen:true}];
+  await set(ref(db,'teams/'+myTeam.id),{...freshMy, budget: freshMy.budget - cost, players: myNewPlayers, stolenUsed: true});
+
   // Update player record
-  await set(ref(db,`players/${player.id}`),{...player, soldTo: myTeam.id, soldPrice: cost});
+  await set(ref(db,'players/'+player.id),{...player, soldTo: myTeam.id, soldPrice: cost});
   closeModal('modal-steal');
   pendingSteal = null;
   showSoldBanner(player.name, myTeam.name + ' (ROBO)', cost, myTeam.color);
@@ -1280,6 +1361,417 @@ function renderTradeRequests(){
   }).join('');
 }
 
+// ══════════════════════════════════════════════════════════════
+// ENFRENTAMIENTOS MODULE
+// ══════════════════════════════════════════════════════════════
+let enfState = { jornadas:{}, matches:{}, lineups:{} };
+let enfActiveJornada = null;
+let enfActiveLadder = 'all';
+let enfLineupDraft = {};
+let enfLineupEditJornada = null;
+let enfPendingScore = null;
+let enfActiveSubTab = 'jornadas';
+
+onValue(ref(db,'enfrentamientos/jornadas'), snap=>{
+  enfState.jornadas = snap.val()||{};
+  if(!enfActiveJornada){ const f=enfSortedJornadas()[0]; if(f) enfActiveJornada=f.id; }
+  enfRenderAll();
+});
+onValue(ref(db,'enfrentamientos/matches'), snap=>{
+  enfState.matches = snap.val()||{};
+  enfRenderAll();
+});
+onValue(ref(db,'enfrentamientos/lineups'), snap=>{
+  enfState.lineups = snap.val()||{};
+  enfRenderAll();
+});
+
+function enfSortedJornadas(){ return Object.values(enfState.jornadas).sort((a,b)=>a.num-b.num); }
+function enfGetMatchesForJornada(jId){ return Object.values(enfState.matches).filter(m=>m.jornadaId===jId); }
+function enfGetLineup(teamId,jornadaId){ return enfState.lineups?.[jornadaId]?.[teamId]||[]; }
+
+function enfGetMatchPoints(h,a){
+  if(h===null||h===undefined||a===null||a===undefined) return {home:null,away:null};
+  h=parseInt(h); a=parseInt(a);
+  if(h>a) return {home:3,away:0};
+  if(a>h) return {home:0,away:3};
+  return {home:1,away:1};
+}
+
+function enfBuildLadder(matches){
+  const stats={};
+  localState.teams.forEach(t=>{ stats[t.id]={id:t.id,name:t.name,color:t.color,logo:t.logo,pts:0,w:0,d:0,l:0,played:0,wf:0,wa:0}; });
+  matches.forEach(m=>{
+    if(m.homeScore===null||m.homeScore===undefined||m.awayScore===null||m.awayScore===undefined) return;
+    const p=enfGetMatchPoints(m.homeScore,m.awayScore);
+    const h=stats[m.homeTeamId], a=stats[m.awayTeamId];
+    if(!h||!a) return;
+    h.pts+=p.home; a.pts+=p.away;
+    h.wf+=parseInt(m.homeScore); h.wa+=parseInt(m.awayScore);
+    a.wf+=parseInt(m.awayScore); a.wa+=parseInt(m.homeScore);
+    h.played++; a.played++;
+    if(p.home===3){h.w++;a.l++} else if(p.away===3){a.w++;h.l++} else {h.d++;a.d++}
+  });
+  const sorted=Object.values(stats).sort((a,b)=>
+    b.pts-a.pts || b.wf-a.wf || (b.wf-b.wa)-(a.wf-a.wa)
+  );
+  sorted.forEach((row,i)=>{
+    const tied=sorted.filter(r=>r.id!==row.id&&r.pts===row.pts&&r.wf===row.wf);
+    row.top4Tie=tied.length>0&&(i<4||sorted.indexOf(tied[0])<4);
+  });
+  return sorted;
+}
+
+function enfRenderAll(){
+  if(document.getElementById('tab-enf')?.classList.contains('active')){
+    enfRenderSubTab(enfActiveSubTab);
+  }
+}
+
+window.showEnfTab=function(sub){
+  enfActiveSubTab=sub;
+  ['jornadas','lineup','ladder','enf-admin'].forEach(s=>{
+    const el=document.getElementById('enf-tab-'+s);
+    if(el) el.style.display=s===sub?'block':'none';
+  });
+  document.querySelectorAll('.enf-stab').forEach((el,i)=>{
+    const subs=['jornadas','lineup','ladder','enf-admin'];
+    el.classList.toggle('active',subs[i]===sub);
+  });
+  enfRenderSubTab(sub);
+};
+
+function enfRenderSubTab(sub){
+  if(sub==='jornadas') enfRenderJornadas();
+  else if(sub==='lineup') enfRenderLineup();
+  else if(sub==='ladder') enfRenderLadder();
+  else if(sub==='enf-admin') enfRenderAdmin();
+}
+
+function enfRenderJornadas(){
+  const jornadas=enfSortedJornadas();
+  const tabsEl=document.getElementById('enf-jornada-tabs');
+  const contentEl=document.getElementById('enf-jornadas-content');
+  if(!tabsEl||!contentEl) return;
+  if(!jornadas.length){
+    tabsEl.innerHTML='';
+    contentEl.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">No hay jornadas creadas. El admin debe crearlas desde ⚙️ Gestión.</div>';
+    return;
+  }
+  if(!enfActiveJornada) enfActiveJornada=jornadas[0].id;
+  tabsEl.innerHTML=jornadas.map(j=>`<div class="enf-jtab ${j.id===enfActiveJornada?'active':''}" onclick="enfSelectJornada('${j.id}')">${j.name||'J'+j.num}</div>`).join('');
+  const j=jornadas.find(x=>x.id===enfActiveJornada)||jornadas[0];
+  if(!j){contentEl.innerHTML='';return}
+  const matches=enfGetMatchesForJornada(j.id);
+  contentEl.innerHTML=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-family:'Cinzel',serif;color:var(--gold-light)">${j.name||'Jornada '+j.num}
+        <span style="font-size:11px;color:var(--muted);font-family:'Exo 2',sans-serif;margin-left:8px">${matches.length} partido${matches.length!==1?'s':''}</span>
+      </div>
+      ${isAdmin?`<button class="btn-primary" style="padding:6px 12px;font-size:11px" onclick="enfOpenCreateMatch('${j.id}')">+ Partido</button>`:''}
+    </div>
+    ${matches.length?matches.map(m=>enfRenderMatchCard(m)).join(''):'<div style="color:var(--muted);font-size:12px;text-align:center;padding:16px">No hay partidos en esta jornada.</div>'}
+  </div>`;
+}
+
+window.enfSelectJornada=function(id){ enfActiveJornada=id; enfRenderJornadas(); };
+
+function enfTeamLogoHtml(team,size){
+  size=size||32;
+  if(!team) return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:#333;border:2px solid #555;display:inline-flex;align-items:center;justify-content:center">?</div>';
+  if(team.logo) return '<img src="'+team.logo+'" style="width:'+size+'px;height:'+size+'px;border-radius:50%;object-fit:cover;border:2px solid '+team.color+'" onerror="this.style.display=\'none\'"/>';
+  return '<div style="width:'+size+'px;height:'+size+'px;border-radius:50%;background:'+team.color+'33;border:2px solid '+team.color+';display:inline-flex;align-items:center;justify-content:center;font-size:'+(size/3)+'px">'+(team.name||'?').charAt(0)+'</div>';
+}
+
+function enfRenderMatchCard(m){
+  const ht=localState.teams.find(t=>String(t.id)===String(m.homeTeamId));
+  const at=localState.teams.find(t=>String(t.id)===String(m.awayTeamId));
+  if(!ht||!at) return '';
+  const hasScore=m.homeScore!==null&&m.homeScore!==undefined&&m.awayScore!==null&&m.awayScore!==undefined;
+  const pts=hasScore?enfGetMatchPoints(m.homeScore,m.awayScore):null;
+  const hLineup=enfGetLineup(m.homeTeamId,m.jornadaId);
+  const aLineup=enfGetLineup(m.awayTeamId,m.jornadaId);
+  function lineupStr(lineup,team){
+    if(!lineup||!lineup.length) return '<span style="color:var(--muted);font-style:italic;font-size:9px">Sin lineup</span>';
+    const td=localState.teams.find(t=>String(t.id)===String(team.id));
+    return (lineup||[]).map(function(pid){
+      const p=(td&&td.players||[]).find(function(pl){return String(pl.id)===String(pid)});
+      return '<div style="font-size:9px;color:var(--muted)">'+(p?p.name:pid)+'</div>';
+    }).join('');
+  }
+  var hBadge='', aBadge='';
+  if(pts){
+    hBadge=pts.home===3?'<span style="color:#27AE60;font-size:10px">✅ +3pts</span>':pts.home===1?'<span style="color:var(--gold);font-size:10px">🤝 +1pt</span>':'<span style="color:#C0392B;font-size:10px">❌ 0pts</span>';
+    aBadge=pts.away===3?'<span style="color:#27AE60;font-size:10px">✅ +3pts</span>':pts.away===1?'<span style="color:var(--gold);font-size:10px">🤝 +1pt</span>':'<span style="color:#C0392B;font-size:10px">❌ 0pts</span>';
+  }
+  return '<div class="match-card-enf" style="'+(hasScore?'border-color:'+ht.color+'55':'')+'">'+
+    '<div class="match-team-enf">'+enfTeamLogoHtml(ht,34)+
+    '<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+ht.color+';margin-top:4px">'+ht.name+'</div>'+
+    hBadge+'<div style="margin-top:4px">'+lineupStr(hLineup,ht)+'</div></div>'+
+    '<div style="text-align:center">'+(hasScore?
+      '<div style="font-size:22px;font-weight:700;color:var(--gold-light);font-family:\'Cinzel\',serif">'+m.homeScore+' \u2013 '+m.awayScore+'</div>':
+      '<div style="color:var(--muted);font-size:13px">vs</div><div style="font-size:10px;color:var(--muted)">Por jugar</div>')+
+    (isAdmin?'<div style="margin-top:6px"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊 '+(hasScore?'Editar':'Anotar')+'</button></div>':'')+
+    '</div>'+
+    '<div class="match-team-enf">'+enfTeamLogoHtml(at,34)+
+    '<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+at.color+';margin-top:4px">'+at.name+'</div>'+
+    aBadge+'<div style="margin-top:4px">'+lineupStr(aLineup,at)+'</div></div></div>';
+}
+
+function enfRenderLineup(){
+  const el=document.getElementById('enf-lineup-content');
+  const bar=document.getElementById('enf-lineup-bar');
+  if(!el) return;
+  const myTeam=getUserTeam();
+  if(!myTeam||isAdmin){
+    el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">'+(isAdmin?'El admin no gestiona lineups.':'Inicia sesión con tu equipo para ver tu lineup.')+'</div>';
+    if(bar) bar.style.display='none'; return;
+  }
+  const jornadas=enfSortedJornadas();
+  if(!jornadas.length){el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">No hay jornadas aún.</div>';if(bar)bar.style.display='none';return}
+  if(!enfLineupEditJornada) enfLineupEditJornada=jornadas[0].id;
+  const j=jornadas.find(x=>x.id===enfLineupEditJornada)||jornadas[0];
+  const allPlayers=myTeam.players||[];
+  const savedLineup=enfGetLineup(myTeam.id,enfLineupEditJornada);
+  if(!enfLineupDraft[enfLineupEditJornada]){
+    enfLineupDraft[enfLineupEditJornada]=savedLineup.reduce(function(acc,pid){acc[String(pid)]=true;return acc},{});
+  }
+  const sel=enfLineupDraft[enfLineupEditJornada]||{};
+  const selCount=Object.values(sel).filter(Boolean).length;
+  const jtabs=jornadas.map(function(jj){return '<div class="enf-jtab '+(jj.id===enfLineupEditJornada?'active':'')+'" onclick="enfSelectLineupJornada(\''+jj.id+'\')">'+(jj.name||'J'+jj.num)+'</div>';}).join('');
+  el.innerHTML='<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">'+jtabs+'</div>'+
+    '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px">'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Selecciona <strong style="color:var(--gold-light)">6 jugadores</strong> para '+(j.name||'Jornada '+j.num)+' <span style="color:'+(selCount===6?'#27AE60':selCount>6?'#E74C3C':'var(--gold)')+';">('+selCount+'/6)</span></div>'+
+    '<div class="lineup-grid-enf">'+
+    allPlayers.map(function(p){
+      return '<div class="lineup-player-enf '+(sel[String(p.id)]?'selected':'')+'" onclick="enfTogglePlayer(\''+p.id+'\',\''+enfLineupEditJornada+'\')">'+
+        (p.fixed?'<div style="font-size:9px;color:var(--gold)">'+p.role+'</div>':'')+
+        '<div>'+p.name+'</div>'+
+        (p.fixed?'':p.price?'<div style="font-size:9px;color:var(--muted)">'+p.price.toLocaleString()+'</div>':'')+
+        '</div>';
+    }).join('')+
+    '</div></div>';
+  if(bar){bar.style.display='flex';document.getElementById('enf-lineup-count').textContent=selCount===6?'✅ Lineup completo (6/6)':selCount+'/6 jugadores';}
+}
+
+window.enfSelectLineupJornada=function(id){ enfLineupEditJornada=id; if(!enfLineupDraft[id]) enfLineupDraft[id]={}; enfRenderLineup(); };
+window.enfTogglePlayer=function(pid,jid){
+  if(!enfLineupDraft[jid]) enfLineupDraft[jid]={};
+  const sel=enfLineupDraft[jid];
+  const cur=!!sel[String(pid)];
+  const count=Object.values(sel).filter(Boolean).length;
+  if(!cur&&count>=6){alert('Ya seleccionaste 6 jugadores. Deselecciona uno primero.');return}
+  sel[String(pid)]=!cur;
+  enfRenderLineup();
+};
+window.enfSaveLineup=async function(){
+  const myTeam=getUserTeam();
+  if(!myTeam||!enfLineupEditJornada) return;
+  const sel=enfLineupDraft[enfLineupEditJornada]||{};
+  const selected=Object.keys(sel).filter(function(k){return sel[k]});
+  if(selected.length!==6){alert('Selecciona exactamente 6 jugadores.');return}
+  await set(ref(db,'enfrentamientos/lineups/'+enfLineupEditJornada+'/'+myTeam.id),selected);
+  alert('Lineup guardado.');
+};
+
+function enfRenderLadder(){
+  const tabsEl=document.getElementById('enf-ladder-tabs');
+  const contentEl=document.getElementById('enf-ladder-content');
+  if(!tabsEl||!contentEl) return;
+  const jornadas=enfSortedJornadas();
+  tabsEl.innerHTML='<div class="enf-jtab '+(enfActiveLadder==='all'?'active':'')+'" onclick="enfSelectLadder(\'all\')">📊 Acumulado</div>'+
+    jornadas.map(function(j){return '<div class="enf-jtab '+(enfActiveLadder===j.id?'active':'')+'" onclick="enfSelectLadder(\''+j.id+'\')">'+(j.name||'J'+j.num)+'</div>';}).join('');
+  const matches=enfActiveLadder==='all'?Object.values(enfState.matches):Object.values(enfState.matches).filter(function(m){return m.jornadaId===enfActiveLadder});
+  const ladder=enfBuildLadder(matches);
+  const title=enfActiveLadder==='all'?'Tabla Acumulada':((jornadas.find(function(j){return j.id===enfActiveLadder})||{}).name||'Jornada');
+  contentEl.innerHTML='<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px">'+
+    '<div style="font-size:11px;color:var(--muted);margin-bottom:10px">'+title+'</div>'+
+    '<table class="enf-ladder-table"><thead><tr>'+
+    '<th>#</th><th>Equipo</th><th>PJ</th><th>G</th><th>E</th><th>P</th><th>Wins↑</th><th>Wins↓</th><th>Pts</th>'+
+    '</tr></thead><tbody>'+
+    ladder.map(function(row,i){
+      const rankColor=i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)';
+      const team=localState.teams.find(function(t){return String(t.id)===String(row.id)});
+      const tieWarn=row.top4Tie?'<span title="Empate — requiere 3v3" style="color:#E74C3C;font-size:10px;margin-left:3px">⚠️3v3</span>':'';
+      return '<tr style="'+(row.top4Tie?'background:#1A0500;':i<4?'background:#001A0A33;':'')+'">'+
+        '<td><span style="font-family:\'Cinzel\',serif;font-weight:700;font-size:14px;color:'+rankColor+'">'+( i+1)+'</span>'+(i===3?'<div style="font-size:8px;color:var(--border)">────</div>':'')+'</td>'+
+        '<td><div style="display:flex;align-items:center;gap:6px">'+
+        (team&&team.logo?'<img src="'+team.logo+'" style="width:20px;height:20px;border-radius:50%;object-fit:cover;border:1px solid '+row.color+'" onerror="this.style.display=\'none\'"/>' :'')+
+        '<span style="color:'+row.color+';font-family:\'Cinzel\',serif;font-size:11px">'+row.name+'</span>'+tieWarn+
+        '</div></td>'+
+        '<td style="color:var(--muted)">'+row.played+'</td>'+
+        '<td style="color:#27AE60">'+row.w+'</td>'+
+        '<td style="color:var(--gold)">'+row.d+'</td>'+
+        '<td style="color:#C0392B">'+row.l+'</td>'+
+        '<td style="color:var(--gold-light);font-weight:600">'+row.wf+'</td>'+
+        '<td style="color:var(--muted)">'+row.wa+'</td>'+
+        '<td><span class="enf-pts">'+row.pts+'</span></td>'+
+        '</tr>';
+    }).join('')+
+    '</tbody></table>'+
+    '<div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.8">'+
+    '🏆 Victoria (más wins): <strong style="color:var(--gold)">3 pts</strong> · 🤝 Empate 3-3: <strong style="color:var(--gold)">1 pt</strong> · ❌ Derrota: <strong style="color:var(--gold)">0 pts</strong><br>'+
+    'Desempate 1: Wins individuales acumulados · Desempate final Top4: ⚠️ <strong style="color:#E74C3C">3v3</strong>'+
+    '</div></div>';
+}
+window.enfSelectLadder=function(id){ enfActiveLadder=id; enfRenderLadder(); };
+
+function enfRenderAdmin(){
+  const el=document.getElementById('enf-admin-content');
+  if(!el||!isAdmin) return;
+  const jornadas=enfSortedJornadas();
+  if(!jornadas.length){el.innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">No hay jornadas. Crea una con el botón de arriba.</div>';return}
+  el.innerHTML=jornadas.map(function(j){
+    const jMatches=enfGetMatchesForJornada(j.id);
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
+      '<span style="font-family:\'Cinzel\',serif;color:var(--gold-light)">'+(j.name||'Jornada '+j.num)+'</span>'+
+      '<div style="display:flex;gap:6px">'+
+      '<button class="btn-secondary" style="font-size:10px;padding:4px 8px" onclick="enfOpenCreateMatch(\''+j.id+'\')">+ Partido</button>'+
+      '<button class="btn-secondary" style="font-size:10px;padding:4px 8px;border-color:#E74C3C;color:#E74C3C" onclick="enfDeleteJornada(\''+j.id+'\')">🗑</button>'+
+      '</div></div>'+
+      (jMatches.length?jMatches.map(function(m){
+        const ht=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
+        const at=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
+        const hasScore=m.homeScore!==null&&m.homeScore!==undefined;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">'+
+          '<span style="color:'+(ht?ht.color:'#888')+'">'+(ht?ht.name:'?')+'</span>'+
+          '<span style="color:var(--gold-light)">'+(hasScore?m.homeScore+' \u2013 '+m.awayScore:'vs')+'</span>'+
+          '<span style="color:'+(at?at.color:'#888')+'">'+(at?at.name:'?')+'</span>'+
+          '<div style="display:flex;gap:4px">'+
+          '<button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊</button>'+
+          '<button class="btn-secondary" style="font-size:10px;padding:3px 8px;border-color:#E74C3C;color:#E74C3C" onclick="enfDeleteMatch(\''+m.id+'\')">🗑</button>'+
+          '</div></div>';
+      }).join(''):'<div style="color:var(--muted);font-size:11px">Sin partidos</div>')+
+      '</div>';
+  }).join('');
+}
+
+window.enfOpenCreateJornada=function(){
+  document.getElementById('enf-modal-jornada').style.display='flex';
+};
+window.enfCreateJornada=async function(){
+  const num=parseInt(document.getElementById('enf-jornada-num').value)||1;
+  const name=document.getElementById('enf-jornada-name').value.trim()||'Jornada '+num;
+  const id='j'+Date.now();
+  await set(ref(db,'enfrentamientos/jornadas/'+id),{id,num,name,createdAt:new Date().toISOString()});
+  if(!enfActiveJornada) enfActiveJornada=id;
+  closeModal('enf-modal-jornada');
+};
+window.enfDeleteJornada=async function(id){
+  if(!confirm('¿Eliminar esta jornada y sus partidos?')) return;
+  await set(ref(db,'enfrentamientos/jornadas/'+id),null);
+  const toDelete=Object.values(enfState.matches).filter(function(m){return m.jornadaId===id});
+  for(const m of toDelete) await set(ref(db,'enfrentamientos/matches/'+m.id),null);
+  if(enfActiveJornada===id) enfActiveJornada=(enfSortedJornadas()[0]||{}).id||null;
+};
+window.enfOpenCreateMatch=function(jornadaId){
+  const selJ=document.getElementById('enf-match-jornada');
+  const selH=document.getElementById('enf-match-home');
+  const selA=document.getElementById('enf-match-away');
+  const jornadas=enfSortedJornadas();
+  selJ.innerHTML=jornadas.map(function(j){return '<option value="'+j.id+'" '+(j.id===jornadaId?'selected':'')+'>'+(j.name||'Jornada '+j.num)+'</option>';}).join('');
+  const teamOpts=localState.teams.map(function(t){return '<option value="'+t.id+'">'+t.name+'</option>';}).join('');
+  selH.innerHTML=teamOpts; selA.innerHTML=teamOpts;
+  if(localState.teams.length>1) selA.selectedIndex=1;
+  document.getElementById('enf-modal-match').style.display='flex';
+};
+window.enfCreateMatch=async function(){
+  const jornadaId=document.getElementById('enf-match-jornada').value;
+  const homeTeamId=parseInt(document.getElementById('enf-match-home').value);
+  const awayTeamId=parseInt(document.getElementById('enf-match-away').value);
+  if(homeTeamId===awayTeamId){alert('Los equipos deben ser distintos.');return}
+  const id='m'+Date.now();
+  await set(ref(db,'enfrentamientos/matches/'+id),{id,jornadaId,homeTeamId,awayTeamId,homeScore:null,awayScore:null});
+  closeModal('enf-modal-match');
+};
+window.enfDeleteMatch=async function(id){
+  if(!confirm('¿Eliminar este partido?')) return;
+  await set(ref(db,'enfrentamientos/matches/'+id),null);
+};
+window.enfOpenScore=function(matchId){
+  const m=enfState.matches[matchId];
+  if(!m) return;
+  enfPendingScore=matchId;
+  const ht=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
+  const at=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
+  document.getElementById('enf-score-teams').innerHTML='<strong style="color:'+(ht?ht.color:'#888')+'">'+(ht?ht.name:'?')+'</strong> vs <strong style="color:'+(at?at.color:'#888')+'">'+(at?at.name:'?')+'</strong>';
+  document.getElementById('enf-score-home-label').textContent=(ht?ht.name:'Local');
+  document.getElementById('enf-score-away-label').textContent=(at?at.name:'Visitante');
+  document.getElementById('enf-score-home').value=m.homeScore!=null?m.homeScore:'';
+  document.getElementById('enf-score-away').value=m.awayScore!=null?m.awayScore:'';
+  document.getElementById('enf-modal-score').style.display='flex';
+};
+window.enfSaveScore=async function(){
+  if(!enfPendingScore) return;
+  const h=parseInt(document.getElementById('enf-score-home').value);
+  const a=parseInt(document.getElementById('enf-score-away').value);
+  if(isNaN(h)||isNaN(a)||h<0||a<0){alert('Puntaje inválido.');return}
+  const m=enfState.matches[enfPendingScore];
+  await set(ref(db,'enfrentamientos/matches/'+enfPendingScore),Object.assign({},m,{homeScore:h,awayScore:a}));
+  closeModal('enf-modal-score'); enfPendingScore=null;
+};
+window.enfClearScore=async function(){
+  if(!enfPendingScore) return;
+  const m=enfState.matches[enfPendingScore];
+  await set(ref(db,'enfrentamientos/matches/'+enfPendingScore),Object.assign({},m,{homeScore:null,awayScore:null}));
+  closeModal('enf-modal-score'); enfPendingScore=null;
+};
+
 </script>
+
+<!-- ENF: Create Jornada -->
+<div id="enf-modal-jornada" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h3>📅 Nueva Jornada</h3>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Número</label>
+    <input type="number" id="enf-jornada-num" min="1" max="7" value="1" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"/></div>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Nombre</label>
+    <input type="text" id="enf-jornada-name" placeholder="Ej: Jornada 1 — Apertura" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"/></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('enf-modal-jornada')">Cancelar</button>
+      <button class="btn-primary" onclick="enfCreateJornada()">Crear</button>
+    </div>
+  </div>
+</div>
+<!-- ENF: Create Match -->
+<div id="enf-modal-match" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:380px">
+    <h3>⚔️ Nuevo Partido</h3>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Jornada</label>
+    <select id="enf-match-jornada" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Equipo Local</label>
+    <select id="enf-match-home" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"></select></div>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Equipo Visitante</label>
+    <select id="enf-match-away" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"></select></div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('enf-modal-match')">Cancelar</button>
+      <button class="btn-primary" onclick="enfCreateMatch()">Crear</button>
+    </div>
+  </div>
+</div>
+<!-- ENF: Score -->
+<div id="enf-modal-score" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:340px">
+    <h3>📊 Resultado</h3>
+    <div id="enf-score-teams" style="text-align:center;margin-bottom:12px;font-size:13px"></div>
+    <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:14px">
+      <div style="text-align:center">
+        <div id="enf-score-home-label" style="font-size:11px;color:var(--muted);margin-bottom:4px"></div>
+        <input type="number" id="enf-score-home" min="0" max="6" style="width:64px;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:20px;text-align:center;font-family:'Cinzel',serif"/>
+      </div>
+      <div style="font-size:20px;color:var(--muted)">–</div>
+      <div style="text-align:center">
+        <div id="enf-score-away-label" style="font-size:11px;color:var(--muted);margin-bottom:4px"></div>
+        <input type="number" id="enf-score-away" min="0" max="6" style="width:64px;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:20px;text-align:center;font-family:'Cinzel',serif"/>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal('enf-modal-score')">Cancelar</button>
+      <button class="btn-secondary" style="border-color:#E74C3C;color:#E74C3C" onclick="enfClearScore()">Borrar</button>
+      <button class="btn-primary" onclick="enfSaveScore()">Guardar</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
