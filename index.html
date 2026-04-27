@@ -311,7 +311,10 @@ h1,h2,h3{font-family:'Cinzel',serif}
       <div id="enf-tab-enf-admin" style="display:none">
         <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px;display:flex;justify-content:space-between;align-items:center">
           <span>⚙️ Gestión de Enfrentamientos</span>
-          <button class="btn-primary" style="padding:6px 12px;font-size:11px" onclick="enfOpenCreateJornada()">+ Jornada</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn-secondary" style="padding:6px 12px;font-size:11px" onclick="enfOpenRenameModal()">✏️ Renombrar jugador</button>
+            <button class="btn-primary" style="padding:6px 12px;font-size:11px" onclick="enfOpenCreateJornada()">+ Jornada</button>
+          </div>
         </div>
         <div id="enf-admin-content"></div>
       </div>
@@ -652,7 +655,7 @@ function renderTeamsMini(){
         <div class="team-mini-budget">${t.budget.toLocaleString()}</div>
       </div>
       <div class="team-mini-bar"><div class="team-mini-fill" style="width:${pct}%;background:${t.color}"></div></div>
-      <div class="team-mini-players">${drafted}/4 drafteados · ${4-drafted} libres</div>
+      <div class="team-mini-players">${drafted}/6 drafteados · ${6-drafted} libres</div>
     </div>`;
   }).join('');
 }
@@ -910,7 +913,7 @@ function renderRosterSteals(el, teams, userTeam){
   el.innerHTML = teams.map(t=>{
     const fixed=(t.players||[]).filter(p=>p.fixed);
     const drafted=(t.players||[]).filter(p=>!p.fixed);
-    const slots=Math.max(0,4-drafted.length);
+    const slots=Math.max(0,6-drafted.length);
     const isMyTeam = userTeam && t.id===userTeam.id;
     return `<div class="roster-card" style="border-top:3px solid ${t.color}">
       <div class="roster-card-header">
@@ -1030,32 +1033,63 @@ window.saveMoney=async function(){
 
 window.openRenameModal=function(){
   if(auctionGuard()) return;
+  enfOpenRenameModal();
+};
+
+// Full rename modal covering ALL players (auction pool + fixed cap/sub + roster)
+window.enfOpenRenameModal=function(){
   const sel = document.getElementById('modal-rename-player');
-  // All players (sold or available, not freeagent)
-  const eligible = localState.players.filter(p=>p.status!=='freeagent');
-  sel.innerHTML = eligible.map(p=>`<option value="${p.id}">${p.name} [${p.status}]</option>`).join('');
-  document.getElementById('modal-rename-name').value = eligible[0]?.name||'';
+  // Auction pool players
+  const auctionPlayers = localState.players.filter(p=>p.status!=='freeagent').map(p=>({
+    _type:'auction', id:'ap_'+p.id, realId:p.id, name:p.name, label:p.name+' ['+p.status+']'
+  }));
+  // Fixed players from all team rosters (captains, subcaptains)
+  const fixedPlayers = [];
+  localState.teams.forEach(t=>{
+    (t.players||[]).filter(p=>p.fixed).forEach(p=>{
+      fixedPlayers.push({_type:'fixed', id:'fp_'+t.id+'_'+p.id, teamId:t.id, playerId:p.id, name:p.name, label:p.name+' ['+t.name+' — '+p.role+']'});
+    });
+  });
+  const all = [...auctionPlayers, ...fixedPlayers];
+  sel.innerHTML = all.map(p=>`<option value="${p.id}">${p.label}</option>`).join('');
+  document.getElementById('modal-rename-name').value = all[0]?.name||'';
   sel.onchange = function(){
-    const p = localState.players.find(p=>String(p.id)===this.value);
+    const p = all.find(x=>x.id===this.value);
     if(p) document.getElementById('modal-rename-name').value = p.name;
   };
+  // Store all for saveRename to use
+  sel._allPlayers = all;
   document.getElementById('modal-rename').style.display='flex';
 };
 
 window.saveRename=async function(){
-  if(auctionGuard()){closeModal('modal-rename');return}
-  const playerId = document.getElementById('modal-rename-player').value;
+  const selEl = document.getElementById('modal-rename-player');
+  const selectedId = selEl.value;
   const newName = document.getElementById('modal-rename-name').value.trim();
-  if(!newName){alert('Ingresa un nombre válido');return}
-  const player = localState.players.find(p=>String(p.id)===String(playerId));
-  if(!player) return;
-  await set(ref(db,`players/${playerId}`),{...player, name: newName});
-  // Also update name in team roster if sold
-  if(player.status==='sold'){
-    const team = localState.teams.find(t=>t.id===player.soldTo);
-    if(team){
-      const updPlayers = (team.players||[]).map(p=>String(p.id)===String(playerId)?{...p,name:newName}:p);
-      await set(ref(db,`teams/${team.id}`),{...team, players: updPlayers});
+  if(!newName){alert('Ingresa un nombre válido.');return}
+
+  const all = selEl._allPlayers || [];
+  const entry = all.find(x=>x.id===selectedId);
+
+  if(entry && entry._type==='fixed'){
+    // Rename fixed player (captain/subcaptain) in team roster
+    const team = localState.teams.find(t=>String(t.id)===String(entry.teamId));
+    if(!team){closeModal('modal-rename');return}
+    const updPlayers = (team.players||[]).map(p=>String(p.id)===String(entry.playerId)?{...p,name:newName}:p);
+    await set(ref(db,'teams/'+team.id),{...team, players: updPlayers});
+  } else {
+    // Rename auction pool player
+    if(auctionGuard()){closeModal('modal-rename');return}
+    const realId = entry ? entry.realId : selectedId.replace('ap_','');
+    const player = localState.players.find(p=>String(p.id)===String(realId));
+    if(!player){closeModal('modal-rename');return}
+    await set(ref(db,'players/'+realId),{...player, name: newName});
+    if(player.status==='sold'){
+      const team = localState.teams.find(t=>t.id===player.soldTo);
+      if(team){
+        const updPlayers = (team.players||[]).map(p=>String(p.id)===String(realId)?{...p,name:newName}:p);
+        await set(ref(db,'teams/'+team.id),{...team, players: updPlayers});
+      }
     }
   }
   closeModal('modal-rename');
@@ -1504,6 +1538,24 @@ function enfRenderMatchCard(m){
     hBadge=pts.home===3?'<span style="color:#27AE60;font-size:10px">✅ +3pts</span>':pts.home===1?'<span style="color:var(--gold);font-size:10px">🤝 +1pt</span>':'<span style="color:#C0392B;font-size:10px">❌ 0pts</span>';
     aBadge=pts.away===3?'<span style="color:#27AE60;font-size:10px">✅ +3pts</span>':pts.away===1?'<span style="color:var(--gold);font-size:10px">🤝 +1pt</span>':'<span style="color:#C0392B;font-size:10px">❌ 0pts</span>';
   }
+  // Build duel breakdown using admin-assigned matchups
+  var duelHtml='';
+  if(hasScore&&m.duels&&m.matchups){
+    duelHtml='<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:9px;width:100%">';
+    for(var di=0;di<6;di++){
+      var mu=m.matchups[di]||{};
+      var hPn=mu.hPid?enfGetPlayerName(mu.hPid,ht):'J'+(di+1);
+      var aPn=mu.aPid?enfGetPlayerName(mu.aPid,at):'J'+(di+1);
+      var dW=m.duels[di];
+      duelHtml+='<div style="display:flex;justify-content:space-between;gap:2px;padding:2px 0;border-bottom:1px solid var(--border)">'+
+        '<span style="color:'+(dW==='home'?ht.color:'var(--muted)')+';font-weight:'+(dW==='home'?700:400)+';flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(dW==='home'?'🏆 ':'')+hPn+'</span>'+
+        '<span style="color:var(--border);padding:0 3px;flex-shrink:0;font-size:8px">vs</span>'+
+        '<span style="color:'+(dW==='away'?at.color:'var(--muted)')+';font-weight:'+(dW==='away'?700:400)+';flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+aPn+(dW==='away'?' 🏆':'')+'</span>'+
+        '</div>';
+    }
+    duelHtml+='</div>';
+  }
+
   return '<div class="match-card-enf" style="'+(hasScore?'border-color:'+ht.color+'55':'')+'">'+
     '<div class="match-team-enf">'+enfTeamLogoHtml(ht,34)+
     '<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+ht.color+';margin-top:4px">'+ht.name+'</div>'+
@@ -1512,6 +1564,7 @@ function enfRenderMatchCard(m){
       '<div style="font-size:22px;font-weight:700;color:var(--gold-light);font-family:\'Cinzel\',serif">'+m.homeScore+' \u2013 '+m.awayScore+'</div>':
       '<div style="color:var(--muted);font-size:13px">vs</div><div style="font-size:10px;color:var(--muted)">Por jugar</div>')+
     (isAdmin?'<div style="margin-top:6px"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊 '+(hasScore?'Editar':'Anotar')+'</button></div>':'')+
+    duelHtml+
     '</div>'+
     '<div class="match-team-enf">'+enfTeamLogoHtml(at,34)+
     '<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+at.color+';margin-top:4px">'+at.name+'</div>'+
@@ -1689,32 +1742,197 @@ window.enfDeleteMatch=async function(id){
   if(!confirm('¿Eliminar este partido?')) return;
   await set(ref(db,'enfrentamientos/matches/'+id),null);
 };
+// duelResults[matchId] = {0:'home'|'away'|null, 1:..., ..., 5:...}
+let duelResults = {};
+
+function enfGetPlayerName(pid, team){
+  const p = (team && team.players||[]).find(function(pl){return String(pl.id)===String(pid)});
+  return p ? p.name : '?';
+}
+
 window.enfOpenScore=function(matchId){
   const m=enfState.matches[matchId];
   if(!m) return;
   enfPendingScore=matchId;
   const ht=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
   const at=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
-  document.getElementById('enf-score-teams').innerHTML='<strong style="color:'+(ht?ht.color:'#888')+'">'+(ht?ht.name:'?')+'</strong> vs <strong style="color:'+(at?at.color:'#888')+'">'+(at?at.name:'?')+'</strong>';
-  document.getElementById('enf-score-home-label').textContent=(ht?ht.name:'Local');
-  document.getElementById('enf-score-away-label').textContent=(at?at.name:'Visitante');
-  document.getElementById('enf-score-home').value=m.homeScore!=null?m.homeScore:'';
-  document.getElementById('enf-score-away').value=m.awayScore!=null?m.awayScore:'';
+
+  document.getElementById('enf-score-home-info').innerHTML='<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+(ht?ht.color:'#888')+'">'+(ht?ht.name:'Local')+'</div>';
+  document.getElementById('enf-score-away-info').innerHTML='<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+(at?at.color:'#888')+'">'+(at?at.name:'Visitante')+'</div>';
+
+  const hAllPlayers=(ht&&ht.players||[]);
+  const aAllPlayers=(at&&at.players||[]);
+
+  // Load saved matchups or init
+  if(!matchupDraft[matchId]){
+    matchupDraft[matchId]={};
+    for(var i=0;i<6;i++){
+      matchupDraft[matchId][i]={
+        hPid:(m.matchups&&m.matchups[i]&&m.matchups[i].hPid!=null)?String(m.matchups[i].hPid):null,
+        aPid:(m.matchups&&m.matchups[i]&&m.matchups[i].aPid!=null)?String(m.matchups[i].aPid):null
+      };
+    }
+  }
+  if(!duelResults[matchId]){
+    duelResults[matchId]={};
+    for(var i=0;i<6;i++) duelResults[matchId][i]=(m.duels&&m.duels[i])||null;
+  }
+
+  enfRenderDuels(matchId,ht,at,hAllPlayers,aAllPlayers);
   document.getElementById('enf-modal-score').style.display='flex';
 };
+
+// matchupDraft[matchId][i] = {hPid, aPid}
+let matchupDraft={};
+
+
+function enfRenderDuels(matchId, ht, at, hPlayers, aPlayers){
+  const duels=duelResults[matchId]||{};
+  const matchups=matchupDraft[matchId]||{};
+  var hWins=0,aWins=0;
+  for(var i=0;i<6;i++){if(duels[i]==='home')hWins++;else if(duels[i]==='away')aWins++;}
+  document.getElementById('enf-score-total').textContent=hWins+' – '+aWins;
+
+  const list=document.getElementById('enf-duels-list');
+  list.innerHTML='';
+
+  // Player option lists
+  const hOpts='<option value="">-- Elige --</option>'+hPlayers.map(function(p){return '<option value="'+p.id+'">'+p.name+(p.fixed?' ('+p.role+')':'')+'</option>';}).join('');
+  const aOpts='<option value="">-- Elige --</option>'+aPlayers.map(function(p){return '<option value="'+p.id+'">'+p.name+(p.fixed?' ('+p.role+')':'')+'</option>';}).join('');
+
+  for(var i=0;i<6;i++){
+    var idx=i;
+    var mu=matchups[i]||{hPid:null,aPid:null};
+    var winner=duels[i];
+    var hSel=winner==='home', aSel=winner==='away';
+    var hPname=mu.hPid?((hPlayers.find(function(p){return String(p.id)===String(mu.hPid)})||{}).name||mu.hPid):'—';
+    var aPname=mu.aPid?((aPlayers.find(function(p){return String(p.id)===String(mu.aPid)})||{}).name||mu.aPid):'—';
+
+    var row=document.createElement('div');
+    row.style.cssText='background:var(--surface2);border:1px solid '+(hSel?(ht?ht.color:'var(--gold)'):aSel?(at?at.color:'var(--gold)'):'var(--border)')+';border-radius:8px;padding:8px;margin-bottom:2px;';
+
+    // Row label
+    var labelDiv=document.createElement('div');
+    labelDiv.style.cssText='font-size:10px;color:var(--muted);margin-bottom:6px;font-family:\'Cinzel\',serif;letter-spacing:.3px';
+    labelDiv.textContent='Duelo '+(i+1);
+    row.appendChild(labelDiv);
+
+    // Matchup selectors
+    var selectRow=document.createElement('div');
+    selectRow.style.cssText='display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin-bottom:6px';
+
+    var hSel2=document.createElement('select');
+    hSel2.style.cssText='padding:5px;background:#0A0A0F;border:1px solid '+(ht?ht.color:'var(--border)')+';border-radius:6px;color:'+(ht?ht.color:'var(--text)')+';font-size:11px;font-family:\'Exo 2\',sans-serif;width:100%';
+    hSel2.innerHTML=hOpts;
+    hSel2.value=mu.hPid||'';
+    hSel2.onchange=(function(ii){return function(){
+      if(!matchupDraft[matchId]) matchupDraft[matchId]={};
+      if(!matchupDraft[matchId][ii]) matchupDraft[matchId][ii]={hPid:null,aPid:null};
+      matchupDraft[matchId][ii].hPid=this.value||null;
+      var m=enfState.matches[matchId];
+      var ht2=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
+      var at2=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
+      enfRenderDuels(matchId,ht2,at2,(ht2&&ht2.players||[]),(at2&&at2.players||[]));
+    };})(idx);
+
+    var vsDiv=document.createElement('div');
+    vsDiv.style.cssText='text-align:center;color:var(--muted);font-size:11px;font-weight:700';
+    vsDiv.textContent='vs';
+
+    var aSel2=document.createElement('select');
+    aSel2.style.cssText='padding:5px;background:#0A0A0F;border:1px solid '+(at?at.color:'var(--border)')+';border-radius:6px;color:'+(at?at.color:'var(--text)')+';font-size:11px;font-family:\'Exo 2\',sans-serif;width:100%';
+    aSel2.innerHTML=aOpts;
+    aSel2.value=mu.aPid||'';
+    aSel2.onchange=(function(ii){return function(){
+      if(!matchupDraft[matchId]) matchupDraft[matchId]={};
+      if(!matchupDraft[matchId][ii]) matchupDraft[matchId][ii]={hPid:null,aPid:null};
+      matchupDraft[matchId][ii].aPid=this.value||null;
+      var m=enfState.matches[matchId];
+      var ht2=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
+      var at2=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
+      enfRenderDuels(matchId,ht2,at2,(ht2&&ht2.players||[]),(at2&&at2.players||[]));
+    };})(idx);
+
+    selectRow.appendChild(hSel2);
+    selectRow.appendChild(vsDiv);
+    selectRow.appendChild(aSel2);
+    row.appendChild(selectRow);
+
+    // Winner buttons (only show if both players assigned)
+    if(mu.hPid&&mu.aPid){
+      var winRow=document.createElement('div');
+      winRow.style.cssText='display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center';
+
+      var btnH=document.createElement('button');
+      btnH.style.cssText='padding:6px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:\'Exo 2\',sans-serif;text-align:left;'+
+        'background:'+(hSel?(ht?ht.color+'33':'#1A1000'):'var(--surface)')+';'+
+        'border:1px solid '+(hSel?(ht?ht.color:'var(--gold)'):'var(--border)')+';'+
+        'color:'+(hSel?(ht?ht.color:'var(--gold-light)'):'var(--muted)')+';font-weight:'+(hSel?700:400)+';';
+      btnH.textContent=(hSel?'🏆 ':'')+hPname;
+      btnH.onclick=(function(ii){return function(){enfSetDuelWinner(matchId,ii,'home');};})(idx);
+
+      var scoreSpan=document.createElement('div');
+      scoreSpan.style.cssText='text-align:center;font-size:12px;font-weight:700;color:var(--gold-light);font-family:\'Cinzel\',serif;min-width:36px';
+      scoreSpan.textContent=hWins+'-'+aWins;
+
+      var btnA=document.createElement('button');
+      btnA.style.cssText='padding:6px 8px;border-radius:6px;font-size:11px;cursor:pointer;font-family:\'Exo 2\',sans-serif;text-align:right;'+
+        'background:'+(aSel?(at?at.color+'33':'#1A1000'):'var(--surface)')+';'+
+        'border:1px solid '+(aSel?(at?at.color:'var(--gold)'):'var(--border)')+';'+
+        'color:'+(aSel?(at?at.color:'var(--gold-light)'):'var(--muted)')+';font-weight:'+(aSel?700:400)+';';
+      btnA.textContent=aPname+(aSel?' 🏆':'');
+      btnA.onclick=(function(ii){return function(){enfSetDuelWinner(matchId,ii,'away');};})(idx);
+
+      winRow.appendChild(btnH);
+      winRow.appendChild(scoreSpan);
+      winRow.appendChild(btnA);
+      row.appendChild(winRow);
+    } else {
+      var hint=document.createElement('div');
+      hint.style.cssText='font-size:10px;color:var(--muted);text-align:center';
+      hint.textContent='Asigna ambos jugadores para anotar el ganador';
+      row.appendChild(hint);
+    }
+
+    list.appendChild(row);
+  }
+}
+
+
+window.enfSetDuelWinner=function(matchId,duelIdx,side){
+  if(!duelResults[matchId]) duelResults[matchId]={};
+  if(duelResults[matchId][duelIdx]===side) duelResults[matchId][duelIdx]=null;
+  else duelResults[matchId][duelIdx]=side;
+  const m=enfState.matches[matchId];
+  const ht=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
+  const at=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
+  enfRenderDuels(matchId,ht,at,(ht&&ht.players||[]),(at&&at.players||[]));
+};
+
 window.enfSaveScore=async function(){
   if(!enfPendingScore) return;
-  const h=parseInt(document.getElementById('enf-score-home').value);
-  const a=parseInt(document.getElementById('enf-score-away').value);
-  if(isNaN(h)||isNaN(a)||h<0||a<0){alert('Puntaje inválido.');return}
   const m=enfState.matches[enfPendingScore];
-  await set(ref(db,'enfrentamientos/matches/'+enfPendingScore),Object.assign({},m,{homeScore:h,awayScore:a}));
+  const duels=duelResults[enfPendingScore]||{};
+  const matchups=matchupDraft[enfPendingScore]||{};
+  var hWins=0,aWins=0;
+  for(var i=0;i<6;i++){if(duels[i]==='home')hWins++;else if(duels[i]==='away')aWins++;}
+  const duelData={},matchupData={};
+  for(var i=0;i<6;i++){
+    duelData[i]=duels[i]||null;
+    matchupData[i]={hPid:(matchups[i]&&matchups[i].hPid)||null,aPid:(matchups[i]&&matchups[i].aPid)||null};
+  }
+  await set(ref(db,'enfrentamientos/matches/'+enfPendingScore),Object.assign({},m,{
+    homeScore:hWins,awayScore:aWins,duels:duelData,matchups:matchupData
+  }));
   closeModal('enf-modal-score'); enfPendingScore=null;
 };
+
 window.enfClearScore=async function(){
   if(!enfPendingScore) return;
   const m=enfState.matches[enfPendingScore];
-  await set(ref(db,'enfrentamientos/matches/'+enfPendingScore),Object.assign({},m,{homeScore:null,awayScore:null}));
+  duelResults[enfPendingScore]={};
+  matchupDraft[enfPendingScore]={};
+  await set(ref(db,'enfrentamientos/matches/'+enfPendingScore),Object.assign({},m,{homeScore:null,awayScore:null,duels:null,matchups:null}));
   closeModal('enf-modal-score'); enfPendingScore=null;
 };
 
@@ -1752,23 +1970,18 @@ window.enfClearScore=async function(){
 </div>
 <!-- ENF: Score -->
 <div id="enf-modal-score" class="modal-overlay" style="display:none">
-  <div class="modal" style="max-width:340px">
-    <h3>📊 Resultado</h3>
-    <div id="enf-score-teams" style="text-align:center;margin-bottom:12px;font-size:13px"></div>
-    <div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-bottom:14px">
-      <div style="text-align:center">
-        <div id="enf-score-home-label" style="font-size:11px;color:var(--muted);margin-bottom:4px"></div>
-        <input type="number" id="enf-score-home" min="0" max="6" style="width:64px;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:20px;text-align:center;font-family:'Cinzel',serif"/>
-      </div>
-      <div style="font-size:20px;color:var(--muted)">–</div>
-      <div style="text-align:center">
-        <div id="enf-score-away-label" style="font-size:11px;color:var(--muted);margin-bottom:4px"></div>
-        <input type="number" id="enf-score-away" min="0" max="6" style="width:64px;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:20px;text-align:center;font-family:'Cinzel',serif"/>
-      </div>
+  <div class="modal" style="max-width:520px">
+    <h3>📊 Resultado del partido</h3>
+    <div id="enf-score-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+      <div id="enf-score-home-info" style="text-align:center;flex:1"></div>
+      <div style="font-size:24px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif;padding:0 12px" id="enf-score-total">0 – 0</div>
+      <div id="enf-score-away-info" style="text-align:center;flex:1"></div>
     </div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-family:'Cinzel',serif;letter-spacing:.5px">DUELOS 1v1 — SELECCIONA AL GANADOR DE CADA DUELO</div>
+    <div id="enf-duels-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeModal('enf-modal-score')">Cancelar</button>
-      <button class="btn-secondary" style="border-color:#E74C3C;color:#E74C3C" onclick="enfClearScore()">Borrar</button>
+      <button class="btn-secondary" style="border-color:#E74C3C;color:#E74C3C" onclick="enfClearScore()">Borrar todo</button>
       <button class="btn-primary" onclick="enfSaveScore()">Guardar</button>
     </div>
   </div>
