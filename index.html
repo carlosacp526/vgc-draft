@@ -1460,9 +1460,11 @@ function enfBuildLadder(matches){
 }
 
 function enfRenderAll(){
-  if(document.getElementById('tab-enf')?.classList.contains('active')){
-    enfRenderSubTab(enfActiveSubTab);
-  }
+  // Always render so content is ready when tab is switched to
+  enfRenderJornadas();
+  enfRenderLadder();
+  if(enfActiveSubTab==='lineup') enfRenderLineup();
+  if(enfActiveSubTab==='enf-admin') enfRenderAdmin();
 }
 
 window.showEnfTab=function(sub){
