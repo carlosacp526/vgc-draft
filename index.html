@@ -272,8 +272,8 @@ h1,h2,h3{font-family:'Cinzel',serif}
 </div>
 
   <!-- ENFRENTAMIENTOS PANEL -->
-  <div id="tab-enf" class="panel">
-    <div style="padding:16px;max-width:960px;margin:0 auto;width:100%">
+  <div id="tab-enf" class="panel" style="align-items:flex-start">
+    <div style="padding:16px;max-width:960px;margin:0;width:100%">
 
       <!-- Sub-tabs -->
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px" id="enf-subtabs">
@@ -285,14 +285,12 @@ h1,h2,h3{font-family:'Cinzel',serif}
 
       <!-- Jornadas -->
       <div id="enf-tab-jornadas">
-        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px">⚔️ Jornadas</div>
         <div class="jornada-tabs-enf" id="enf-jornada-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
         <div id="enf-jornadas-content"></div>
       </div>
 
       <!-- Lineup -->
       <div id="enf-tab-lineup" style="display:none">
-        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px">📋 Mi Lineup por Jornada</div>
         <div id="enf-lineup-content"></div>
         <div id="enf-lineup-bar" style="display:none;position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:10px 16px;display:none;align-items:center;justify-content:space-between;font-size:12px">
           <span id="enf-lineup-count" style="color:var(--muted)"></span>
@@ -302,7 +300,6 @@ h1,h2,h3{font-family:'Cinzel',serif}
 
       <!-- Ladder -->
       <div id="enf-tab-ladder" style="display:none">
-        <div style="font-size:13px;color:var(--gold-light);margin-bottom:10px;font-family:'Cinzel',serif;border-bottom:1px solid var(--border);padding-bottom:6px">🏆 Tabla de Posiciones</div>
         <div id="enf-ladder-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"></div>
         <div id="enf-ladder-content"></div>
       </div>
@@ -625,7 +622,7 @@ window.showTab=function(tab){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab')[tabs.indexOf(tab)].classList.add('active');
   document.getElementById('tab-'+tab).classList.add('active');
-  if(tab==='enf') enfRenderSubTab(enfActiveSubTab);
+  if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
 };
 
 function updateHeaderBudget(){
@@ -1099,13 +1096,24 @@ window.openMoveModal=function(){
   if(auctionGuard()) return;
   const selPlayer = document.getElementById('modal-move-player');
   const selTarget = document.getElementById('modal-move-target');
-  // Only drafted (non-fixed, sold) players
-  const eligible = localState.players.filter(p=>p.status==='sold');
+  // Include sold players AND free agents
+  const eligible = localState.players.filter(p=>p.status==='sold'||p.status==='available'||p.status==='freeagent');
+  function teamOpts(skipPlayerId){
+    return localState.teams.map(t=>{
+      const drafted=(t.players||[]).filter(p=>!p.fixed).length;
+      const slots=Math.max(0,6-drafted);
+      return `<option value="${t.id}">${t.name} — ${slots} slot${slots!==1?'s':''} libre${slots!==1?'s':''}</option>`;
+    }).join('');
+  }
   selPlayer.innerHTML = eligible.map(p=>{
-    const t = localState.teams.find(t=>t.id===p.soldTo);
-    return `<option value="${p.id}">${p.name} (${t?.name||'?'})</option>`;
+    if(p.status==='sold'){
+      const t=localState.teams.find(t=>t.id===p.soldTo);
+      return `<option value="${p.id}">${p.name} (${t?.name||'?'})</option>`;
+    }
+    return `<option value="${p.id}">${p.name} (Agencia libre)</option>`;
   }).join('');
-  selTarget.innerHTML = localState.teams.map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  selTarget.innerHTML = teamOpts();
+  selPlayer.onchange = function(){ selTarget.innerHTML = teamOpts(); };
   document.getElementById('modal-move').style.display='flex';
 };
 
@@ -1115,23 +1123,27 @@ window.saveMove=async function(){
   const targetId = parseInt(document.getElementById('modal-move-target').value);
   const player = localState.players.find(p=>String(p.id)===String(playerId));
   if(!player){closeModal('modal-move');return}
-  const fromTeam = localState.teams.find(t=>t.id===player.soldTo);
   const toTeam = localState.teams.find(t=>t.id===targetId);
-  if(!fromTeam||!toTeam){alert('Equipo no encontrado');return}
-  if(fromTeam.id===toTeam.id){alert('El jugador ya está en ese equipo');return}
-  // Remove from old team (refund price)
-  const fromNewPlayers = (fromTeam.players||[]).filter(p=>String(p.id)!==String(playerId));
-  await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam, budget: fromTeam.budget + player.soldPrice, players: fromNewPlayers});
-  // Add to new team (charge same price)
-  if(toTeam.budget < player.soldPrice){
-    if(!confirm(`${toTeam.name} no tiene suficiente presupuesto (${toTeam.budget.toLocaleString()}). ¿Mover de todas formas (el presupuesto quedará negativo)?`)){return}
+  if(!toTeam){alert('Equipo no encontrado');return}
+  const isFromATeam = player.status==='sold';
+  const fromTeam = isFromATeam?localState.teams.find(t=>t.id===player.soldTo):null;
+  if(isFromATeam&&fromTeam&&fromTeam.id===toTeam.id){alert('El jugador ya está en ese equipo.');return}
+  // Check slots in target team
+  const toDrafted=(toTeam.players||[]).filter(p=>!p.fixed);
+  if(toDrafted.length>=6){alert(toTeam.name+' ya tiene 6 jugadores drafteados. No hay slots disponibles.');return}
+  // Remove from old team if sold
+  if(isFromATeam&&fromTeam){
+    const fromNewPlayers=(fromTeam.players||[]).filter(p=>String(p.id)!==String(playerId));
+    await set(ref(db,`teams/${fromTeam.id}`),{...fromTeam,budget:fromTeam.budget+(player.soldPrice||0),players:fromNewPlayers});
   }
-  const toNewPlayers = [...(toTeam.players||[]), {id:player.id, name:player.name, price:player.soldPrice, fixed:false}];
-  await set(ref(db,`teams/${toTeam.id}`),{...toTeam, budget: toTeam.budget - player.soldPrice, players: toNewPlayers});
-  // Update player record
-  await set(ref(db,`players/${playerId}`),{...player, soldTo: toTeam.id});
+  // Add to new team (free agents go in at price 0)
+  const price=isFromATeam?(player.soldPrice||0):0;
+  const toNewPlayers=[...(toTeam.players||[]),{id:player.id,name:player.name,price,fixed:false}];
+  await set(ref(db,`teams/${toTeam.id}`),{...toTeam,budget:toTeam.budget-price,players:toNewPlayers});
+  await set(ref(db,`players/${playerId}`),{...player,status:'sold',soldTo:toTeam.id,soldPrice:price});
   closeModal('modal-move');
 };
+
 
 // ── OVERRIDE renderRosters to include steal buttons ────────────────────────────
 function renderRosters(){
