@@ -493,6 +493,7 @@ let localState = {
 };
 let currentUser = null;
 let isAdmin = false;
+let isSpectator = false;
 let timerInterval = null;
 let lastAuctionId = null;
 
@@ -591,20 +592,27 @@ window.handleLogin=function(){
   if(!val){err.textContent='Ingresa el nombre de tu equipo.';return}
   // Admin login
   if(val.toLowerCase()==='admin'&&code==='admin2024'){
-    isAdmin=true; currentUser='Admin';
+    isAdmin=true; isSpectator=false; currentUser='Admin';
     document.querySelectorAll('.admin-only').forEach(e=>e.style.display='');
+  // Espectador Perumasters
+  } else if(val.toLowerCase()==='perumasters'&&code==='Inkaleague123'){
+    isAdmin=false; isSpectator=true; currentUser='Perumasters';
   } else {
     const team=localState.teams.find(t=>t.name.toLowerCase()===val.toLowerCase());
     if(!team){err.textContent='Equipo no encontrado. Verifica el nombre exacto.';return}
     const expectedCode=TEAM_CODES[team.name];
     if(!expectedCode||code!==expectedCode){err.textContent='Código incorrecto.';return}
-    currentUser=team.name; isAdmin=false;
+    currentUser=team.name; isAdmin=false; isSpectator=false;
   }
   err.textContent='';
   document.getElementById('pw-screen').style.display='none';
   document.getElementById('main-app').style.display='flex';
   updateHeaderBudget(); renderAll();
   if(isAdmin) document.querySelectorAll('.enf-stab.admin-only').forEach(e=>e.style.display='');
+  // Espectador: ocultar controles de acción
+  if(isSpectator){
+    document.querySelectorAll('.spectator-hidden').forEach(e=>e.style.display='none');
+  }
 };
 document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter') document.getElementById('pw-code').focus()});
 document.getElementById('pw-code').addEventListener('keydown',e=>{if(e.key==='Enter') window.handleLogin()});
@@ -625,6 +633,7 @@ function updateHeaderBudget(){
   const el=document.getElementById('header-budget');
   if(!el) return;
   if(isAdmin){el.innerHTML='<strong>ADMIN</strong>';return}
+  if(isSpectator){el.innerHTML='<span style="color:var(--muted);font-size:11px">👁 Espectador</span><strong style="color:var(--gold-light)">PERUMASTERS</strong>';return}
   const t=getUserTeam();
   if(t) el.innerHTML=`<span>Presupuesto</span><strong>${t.budget.toLocaleString()}</strong>`;
 }
@@ -726,6 +735,7 @@ function renderAuction(){
 }
 
 window.placeBid=async function(amount){
+  if(isSpectator) return;
   const team=getUserTeam();
   if(!team||!localState.auction) return;
   if(amount>team.budget){alert('¡No tienes suficiente presupuesto!');return}
@@ -745,6 +755,7 @@ window.placeBid=async function(amount){
 };
 
 window.placeCustomBid=function(){
+  if(isSpectator) return;
   const raw=document.getElementById('custom-bid')?.value.replace(/[^0-9]/g,'');
   const val=parseInt(raw);
   const team=getUserTeam();
@@ -942,6 +953,7 @@ function renderRosterSteals(el, teams, userTeam){
 }
 
 window.openSteal=function(playerId, fromTeamId, playerName, originalPrice){
+  if(isSpectator) return;
   const myTeam = getUserTeam();
   if(!myTeam){return}
   if(myTeam.stolenUsed){alert('Ya usaste tu robo. Solo se puede robar una vez por equipo.');return}
@@ -956,6 +968,7 @@ window.openSteal=function(playerId, fromTeamId, playerName, originalPrice){
 };
 
 window.confirmSteal=async function(){
+  if(isSpectator) return;
   if(!pendingSteal) return;
   const myTeam = getUserTeam();
   const fromTeam = localState.teams.find(t=>t.id===pendingSteal.fromTeamId);
@@ -1215,6 +1228,7 @@ function updateTradeSummary(myTeam, theirTeam){
 
 // Send trade REQUEST (no immediate execution)
 window.confirmTrade = async function(){
+  if(isSpectator) return;
   const myTeam = getUserTeam();
   if(!myTeam||!pendingTrade) return;
 
@@ -1315,6 +1329,7 @@ async function executeTrade(req){
 }
 
 window.acceptTrade = async function(reqId){
+  if(isSpectator) return;
   const req = localState.tradeRequests.find(r=>r.id===reqId);
   if(!req||req.status!=='pending') return;
   const fromTeam = localState.teams.find(t=>t.id===req.fromTeamId);
@@ -1331,12 +1346,14 @@ window.acceptTrade = async function(reqId){
 };
 
 window.rejectTrade = async function(reqId){
+  if(isSpectator) return;
   const req = localState.tradeRequests.find(r=>r.id===reqId);
   if(!req) return;
   await set(ref(db,'tradeRequests/'+reqId),{...req,status:'rejected'});
 };
 
 window.cancelTrade = async function(reqId){
+  if(isSpectator) return;
   const req = localState.tradeRequests.find(r=>r.id===reqId);
   if(!req) return;
   await set(ref(db,'tradeRequests/'+reqId),{...req,status:'cancelled'});
@@ -1636,6 +1653,7 @@ window.enfTogglePlayer=function(pid,jid){
   enfRenderLineup();
 };
 window.enfSaveLineup=async function(){
+  if(isSpectator) return;
   const myTeam=getUserTeam();
   if(!myTeam||!enfLineupEditJornada) return;
   const sel=enfLineupDraft[enfLineupEditJornada]||{};
@@ -1722,6 +1740,7 @@ window.enfOpenCreateJornada=function(){
   document.getElementById('enf-modal-jornada').style.display='flex';
 };
 window.enfCreateJornada=async function(){
+  if(isSpectator) return;
   const num=parseInt(document.getElementById('enf-jornada-num').value)||1;
   const name=document.getElementById('enf-jornada-name').value.trim()||'Jornada '+num;
   const id='j'+Date.now();
@@ -1730,6 +1749,7 @@ window.enfCreateJornada=async function(){
   closeModal('enf-modal-jornada');
 };
 window.enfDeleteJornada=async function(id){
+  if(isSpectator) return;
   if(!confirm('¿Eliminar esta jornada y sus partidos?')) return;
   await set(ref(db,'enfrentamientos/jornadas/'+id),null);
   const toDelete=Object.values(enfState.matches).filter(function(m){return m.jornadaId===id});
@@ -1748,6 +1768,7 @@ window.enfOpenCreateMatch=function(jornadaId){
   document.getElementById('enf-modal-match').style.display='flex';
 };
 window.enfCreateMatch=async function(){
+  if(isSpectator) return;
   const jornadaId=document.getElementById('enf-match-jornada').value;
   const homeTeamId=parseInt(document.getElementById('enf-match-home').value);
   const awayTeamId=parseInt(document.getElementById('enf-match-away').value);
@@ -1757,6 +1778,7 @@ window.enfCreateMatch=async function(){
   closeModal('enf-modal-match');
 };
 window.enfDeleteMatch=async function(id){
+  if(isSpectator) return;
   if(!confirm('¿Eliminar este partido?')) return;
   await set(ref(db,'enfrentamientos/matches/'+id),null);
 };
@@ -1964,6 +1986,7 @@ window.enfSetDuelWinner=function(matchId,duelIdx,side){
 };
 
 window.enfSaveScore=async function(){
+  if(isSpectator) return;
   if(!enfPendingScore) return;
   const m=enfState.matches[enfPendingScore];
   const duels=duelResults[enfPendingScore]||{};
@@ -1987,6 +2010,7 @@ window.enfSaveScore=async function(){
 };
 
 window.enfClearScore=async function(){
+  if(isSpectator) return;
   if(!enfPendingScore) return;
   const m=enfState.matches[enfPendingScore];
   duelResults[enfPendingScore]={};
