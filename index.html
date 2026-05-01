@@ -1598,7 +1598,7 @@ function enfRenderMatchCard(m){
     '<div style="text-align:center">'+(hasScore?
       '<div style="font-size:22px;font-weight:700;color:var(--gold-light);font-family:\'Cinzel\',serif">'+m.homeScore+' \u2013 '+m.awayScore+'</div>':
       '<div style="color:var(--muted);font-size:13px">vs</div><div style="font-size:10px;color:var(--muted)">Por jugar</div>')+
-    (!isSpectator?'<div style="margin-top:6px"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊 '+(hasScore?'Editar':'Anotar')+'</button></div>':'')+
+    ((!isSpectator&&(isAdmin||(getUserTeam()&&(String(getUserTeam().id)===String(m.homeTeamId)||String(getUserTeam().id)===String(m.awayTeamId)))))?'<div style="margin-top:6px"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊 '+(hasScore?'Editar':'Anotar')+'</button></div>':'')+
     duelHtml+
     '</div>'+
     '<div class="match-team-enf">'+enfTeamLogoHtml(at,34)+
@@ -1796,6 +1796,12 @@ var BO3_SCORES = [{h:2,a:0},{h:2,a:1},{h:1,a:2},{h:0,a:2}];
 window.enfOpenScore=function(matchId){
   const m=enfState.matches[matchId];
   if(!m) return;
+  // Solo admin o equipos participantes pueden anotar
+  if(!isAdmin&&!isSpectator){
+    const myTeam=getUserTeam();
+    if(!myTeam||( String(myTeam.id)!==String(m.homeTeamId)&&String(myTeam.id)!==String(m.awayTeamId))) return;
+  }
+  if(isSpectator) return;
   enfPendingScore=matchId;
   const ht=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
   const at=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
