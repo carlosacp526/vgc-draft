@@ -253,9 +253,7 @@ h1,h2,h3{font-family:'Cinzel',serif}
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
         <span style="font-family:'Cinzel',serif;color:var(--gold-light);font-size:13px">📊 Top Pokémon</span>
         <div style="display:flex;gap:6px;margin-left:auto">
-          <button id="topmon-btn-all" class="enf-stab active" onclick="topmonSetWeek('all')">📊 Total</button>
-          <button id="topmon-btn-1" class="enf-stab" onclick="topmonSetWeek(1)">Week 1</button>
-          <button id="topmon-btn-2" class="enf-stab" onclick="topmonSetWeek(2)">Week 2</button>
+          <span id="topmon-week-btns"></span>
         </div>
       </div>
       <!-- Stats summary -->
@@ -672,7 +670,7 @@ window.showTab=function(tab){
   var panel=document.getElementById('tab-'+tab);
   if(panel){ panel.classList.add('active'); panel.style.display='flex'; panel.style.flexDirection='column'; }
   if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
-  if(tab==='topmon'){ topmonRender(); }
+  if(tab==='topmon'){ topmonBuildWeekButtons(); topmonSetWeek('all'); }
 };
 
 function updateHeaderBudget(){
@@ -2479,11 +2477,30 @@ function topmonBuildStats(weekFilter){
   return {sorted:sorted,total:totalTeams};
 }
 
+function topmonGetWeeks(){
+  var weeks=[];
+  TOPMON_DATA.forEach(function(row){
+    if(weeks.indexOf(row.week)===-1) weeks.push(row.week);
+  });
+  return weeks.sort(function(a,b){return a-b});
+}
+
+function topmonBuildWeekButtons(){
+  var container=document.getElementById('topmon-week-btns');
+  if(!container) return;
+  var weeks=topmonGetWeeks();
+  var html='<button id="topmon-btn-all" class="enf-stab active" onclick="topmonSetWeek(\'all\')">📊 Total</button>';
+  weeks.forEach(function(w){
+    html+='<button id="topmon-btn-'+w+'" class="enf-stab" onclick="topmonSetWeek('+w+')">Week '+w+'</button>';
+  });
+  container.innerHTML=html;
+}
+
 window.topmonSetWeek=function(week){
-  // Normalize: keep 'all' as string, convert numeric weeks to Number
   topmonCurrentWeek = (week === 'all') ? 'all' : Number(week);
-  // Update button states
-  ['all',1,2].forEach(function(w){
+  var weeks=topmonGetWeeks();
+  var allKeys=['all'].concat(weeks);
+  allKeys.forEach(function(w){
     var btn=document.getElementById('topmon-btn-'+w);
     if(btn) btn.classList.toggle('active', String(w)===String(topmonCurrentWeek));
   });
