@@ -253,7 +253,8 @@ h1,h2,h3{font-family:'Cinzel',serif}
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
         <span style="font-family:'Cinzel',serif;color:var(--gold-light);font-size:13px">📊 Top Pokémon</span>
         <div style="display:flex;gap:6px;margin-left:auto">
-          <span id="topmon-week-btns"></span>
+          <span id="topmon-load-status" style="font-size:11px;color:var(--muted)"></span>
+        <span id="topmon-week-btns"></span>
         </div>
       </div>
       <!-- Stats summary -->
@@ -670,7 +671,12 @@ window.showTab=function(tab){
   var panel=document.getElementById('tab-'+tab);
   if(panel){ panel.classList.add('active'); panel.style.display='flex'; panel.style.flexDirection='column'; }
   if(tab==='enf'){ enfRenderJornadas(); enfRenderSubTab(enfActiveSubTab); }
-  if(tab==='topmon'){ topmonBuildWeekButtons(); topmonSetWeek('all'); }
+  if(tab==='topmon'){
+    topmonLoadExcel(function(){
+      topmonBuildWeekButtons();
+      topmonSetWeek('all');
+    });
+  }
 };
 
 function updateHeaderBudget(){
@@ -2399,48 +2405,63 @@ var TOPMON_SPRITE = {
 // ── Raw match data embedded from Excel (updated manually)
 // Structure: [{week:1, pokemons:['Kingambit','Basculegion',...6 slots]}, ...]
 // We embed the data at build time from the Excel
-var TOPMON_DATA = [
-  {week:1,player:'William Chochoca',pokemons:['Aerodactyl','Kommo-o','Kingambit','Scovillain','Sneasler','Basculegion']},
-  {week:1,player:'Manuel Espiritu',pokemons:['Arcanine','Gardevoir','Tyranitar','Rotom','Garchomp','Corviknight']},
-  {week:1,player:'Sergio Aguirre',pokemons:['Mega Kangaskhan','Farigiraf','Basculegion','Torkoal','Kingambit','Sylveon']},
-  {week:1,player:'Bryan Changa',pokemons:['Charizard Mega Y','Floette Mega','Aerodactyl','Garchomp','Kingambit','Basculegion']},
-  {week:1,player:'Gabriel',pokemons:['Mega Venusaur','Archaludon','Pelipper','Basculegion','Sableye','Kingambit']},
-  {week:1,player:'Jesus Pinto',pokemons:['Aerodactyl Mega','Scovillain','Kommo-o','Sneasler','Kingambit','Sylveon']},
-  {week:1,player:'Rainer',pokemons:['Pelipper','Basculegion','Dragonite','Kingambit','Sneasler','Archaludon']},
-  {week:1,player:'Gyisus',pokemons:['Venusaur','Scizor','Pelipper','Basculegion','Archaludon','Incineroar']},
-  {week:1,player:'Luis Alonso Coello',pokemons:['Gardevoir','Garchomp','Talonflame','Basculegion','Kingambit','Maushold']},
-  {week:1,player:'Rodrigo Rodriguez',pokemons:['Incineroar','Farigiraf','Charizard','Drampa','Torkoal','Hatterene']},
-  {week:2,player:'Giorgio Falconi',pokemons:['Talonflame','Garchomp','Sneasler','Basculegion','Kingambit','Floette']},
-  {week:2,player:'Gonzalo Padilla',pokemons:['Mega Gardevoir','Sneasler','Pelipper','Incineroar','Basculegion','Kingambit']},
-  {week:2,player:'Italo',pokemons:['Whimsicott','Mega Venusaur','Charizard Mega Y','Garchomp','Basculegion M','Kingambit']},
-  {week:2,player:'Juanjo',pokemons:['Mega Aerodactyl','Mega Scovillain','Sneasler','Basculegion M','Kingambit','Kommo-O']},
-  {week:2,player:'Renzo',pokemons:['Floette','Aerodactyl','Sneasler','Incineroar','Garchomp','Basculegion']},
-  {week:2,player:'Jr',pokemons:['Gengar','Rotom-W','Aegislash','Ninetales-A','Garchomp','Incineroar']},
-  {week:2,player:'Hanns',pokemons:['Mega Kangaskhan','Torkoal','Farigiraf','Hatterene','Kingambit','Venusaur']},
-  {week:2,player:'Jesus',pokemons:['Charizard Mega Y','Mega Froslass','Aerodactyl','Basculegion','Kingambit','Dragonite']},
-  {week:2,player:'Cristian Palante',pokemons:['Charizard','Kingambit','Sneasler','Garchomp','Basculegion','Whimsicott']},
-  {week:2,player:'André Távara',pokemons:['Kingambit','Ninetales-Alola','Gengar','Dragonite','Incineroar','Sneasler']},
-  {week:2,player:'Juan Silva',pokemons:['Kangaskhan','Farigiraf','Torkoal','Basculegion','Kingambit','Sylveon']},
-  {week:2,player:'Luis Allasi',pokemons:['Ninetales Alola','Sneasler','Gengar','Kingambit','Incineroar','Dragonite']},
-  {week:2,player:'Roberto Pozo',pokemons:['Farigiraf','Torkoal','Sylveon','Kingambit','Basculegion M','Mega Kangaskhan']},
-  {week:2,player:'Benjamin Ruiz',pokemons:['Charizard Mega Y','Sneasler','Basculegion M','Incineroar','Venusaur','Garchomp']},
-  {week:2,player:'Ernesto Serpa',pokemons:['Floette-Eternal','Incineroar','Camerupt','Sinitscha','Maushold','Mimikyu']},
-  {week:2,player:'Carlos Verastegui',pokemons:['Mega Charizard Y','Floette-Eternal','Kingambit','Basculegion-Male','Aerodactyl','Garchomp']},
-  {week:2,player:'Fito Pezán',pokemons:['Aerodactyl','Floette-Eternal','Garchomp','Basculegion','Sneasler','Kingambit']},
-  {week:2,player:'Héctor Acuña',pokemons:['Charizard-Y','Farigiraf','Aerodactyl','Sylveon','Basculegion','Garchomp']},
-  {week:2,player:'Rodrigo Montoya',pokemons:['Tyranitar','Excadrill','Sneasler','Scovillain','Corviknight','Basculegion-Male']},
-  {week:2,player:'Bryan More',pokemons:['Tyranitar','Excadrill','Sneasler','Incineroar','Basculegion-Male','Dragonite']},
-  {week:2,player:'Sebastian Solari',pokemons:['Charizard Y','Aerodactyl','Kingambit','Floette Eternal','Garchomp','Basculegion-Male']},
-  {week:2,player:'Glauco Valdivieso',pokemons:['Blastoise','Pelipper','Primarina','Starmie','Archaludon','Basculegion-Male']},
-  {week:2,player:'Gonzalo Barrera',pokemons:['Kingambit','Mega Aerodactyl','Mega Scovillain','Sneasler','Basculegion','Kommo-o']},
-  {week:2,player:'Gianfranco De Vettori',pokemons:['Mega Tyranitar','Mega Floette','Rotom-W','Excadrill','Incineroar','Sinitscha']},
-  {week:2,player:'Diego Ortiz',pokemons:['Typhlosion Hisui','Mega Gardevoir','Incineroar','Farigiraf','Mega Garchomp','Torkoal']},
-  {week:2,player:'Francisco Alca',pokemons:['Palafin','Pelipper','Hydreigon','Maushold','Mega Gengar','Incineroar']},
-  {week:2,player:'Poketubi',pokemons:['Aerodactyl','Mega Charizard Y','Basculegion','Garchomp','Floette-Eternal','Kingambit']},
-  {week:2,player:'Jorge Baca',pokemons:['Mega Charizard Y','Aerodactyl','Ariados','Garchomp','Sylveon','Basculegion']},
-];
-
+var TOPMON_DATA = [];
 var topmonCurrentWeek='all';
+
+// ── Carga el Excel desde GitHub y parsea los datos ──────────────────────────
+// Cambia esta URL por la raw URL de tu repositorio GitHub
+var TOPMON_EXCEL_URL = 'https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/resultados_torneo.xlsx';
+
+function topmonLoadExcel(callback){
+  var statusEl = document.getElementById('topmon-load-status');
+  if(statusEl) statusEl.textContent = 'Cargando datos...';
+
+  // Carga SheetJS dinámicamente si no está disponible
+  function doFetch(){
+    fetch(TOPMON_EXCEL_URL + '?nocache=' + Date.now())
+      .then(function(r){
+        if(!r.ok) throw new Error('HTTP ' + r.status);
+        return r.arrayBuffer();
+      })
+      .then(function(buf){
+        var XLSX = window.XLSX;
+        var wb = XLSX.read(new Uint8Array(buf), {type:'array'});
+        var ws = wb.Sheets['Resultados'];
+        if(!ws){ throw new Error('Hoja "Resultados" no encontrada'); }
+        var rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+        TOPMON_DATA = [];
+        rows.forEach(function(row){
+          var week = parseInt(row['Week']);
+          var player = String(row['Jugador']||'').trim();
+          if(!week || !player) return;
+          var pokemons = [];
+          for(var i=1;i<=6;i++){
+            var p = String(row['Pokemon '+i]||'').trim();
+            if(p && p!=='nan') pokemons.push(p);
+          }
+          if(pokemons.length > 0){
+            TOPMON_DATA.push({week:week, player:player, pokemons:pokemons});
+          }
+        });
+        if(statusEl) statusEl.textContent = '';
+        if(callback) callback();
+      })
+      .catch(function(err){
+        console.error('Error cargando Excel:', err);
+        if(statusEl) statusEl.textContent = '⚠️ Error cargando datos: ' + err.message;
+      });
+  }
+
+  if(window.XLSX){
+    doFetch();
+  } else {
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = doFetch;
+    script.onerror = function(){ if(statusEl) statusEl.textContent = '⚠️ No se pudo cargar SheetJS'; };
+    document.head.appendChild(script);
+  }
+}
 
 function topmonNormalize(name){
   if(!name||name===''||name==='nan') return null;
