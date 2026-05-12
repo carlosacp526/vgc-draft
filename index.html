@@ -2492,79 +2492,108 @@ function topmonRankColor(i){
   return i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)';
 }
 
-function topmonSpriteImg(name,size,cls){
-  size=size||72; cls=cls||'topmon-sprite';
-  var url=topmonGetSpriteUrl(name);
-  var fallback='<div class="topmon-sprite-placeholder" style="width:'+size+'px;height:'+size+'px"><span style="font-size:'+(size/2.5)+'px">?</span></div>';
-  return '<img src="'+url+'" alt="'+name+'" class="'+cls+'" style="width:'+size+'px;height:'+size+'px" '+
-    'onerror="this.onerror=null;this.parentNode.innerHTML=\''+fallback.replace(/'/g,"\\'")+'\'"/>';
+// Sprite: usa un <div> con data-src para cargar imágenes sin onerror inline
+function topmonMakeSprite(name, size, isSmall) {
+  var url = topmonGetSpriteUrl(name);
+  var id = 'tms-' + Math.random().toString(36).slice(2);
+  // Devuelve un placeholder div que luego se hidrata
+  var s = size || (isSmall ? 34 : 68);
+  return '<div id="' + id + '" class="topmon-sprite-wrap" data-src="' + url + '" data-size="' + s + '" ' +
+    'style="width:' + s + 'px;height:' + s + 'px;display:flex;align-items:center;justify-content:center;flex-shrink:0"></div>';
+}
+
+function topmonHydrateSprites() {
+  document.querySelectorAll('.topmon-sprite-wrap[data-src]').forEach(function(wrap) {
+    if (wrap.dataset.hydrated) return;
+    wrap.dataset.hydrated = '1';
+    var src = wrap.dataset.src;
+    var size = parseInt(wrap.dataset.size) || 68;
+    var img = document.createElement('img');
+    img.style.cssText = 'width:' + size + 'px;height:' + size + 'px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))';
+    img.alt = '';
+    img.onerror = function() {
+      // Simple fallback: Pokéball emoji in a circle
+      wrap.innerHTML = '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:#1A1A26;border:2px solid #2A2A40;display:flex;align-items:center;justify-content:center;font-size:' + Math.round(size * 0.4) + 'px">⚪</div>';
+    };
+    img.src = src;
+    wrap.appendChild(img);
+  });
 }
 
 function topmonRender(){
-  var stats=topmonBuildStats(topmonCurrentWeek);
-  var sorted=stats.sorted;
-  var total=stats.total;
-  var weeks=topmonCurrentWeek==='all'?[1,2]:[topmonCurrentWeek];
-  var numEntries=TOPMON_DATA.filter(function(r){return topmonCurrentWeek==='all'||r.week===topmonCurrentWeek;}).length;
+  var stats = topmonBuildStats(topmonCurrentWeek);
+  var sorted = stats.sorted;
+  var total = stats.total;
+  var numEntries = TOPMON_DATA.filter(function(r){ return topmonCurrentWeek==='all' || r.week===topmonCurrentWeek; }).length;
 
   // Summary bar
-  var summaryEl=document.getElementById('topmon-summary');
+  var summaryEl = document.getElementById('topmon-summary');
   if(summaryEl){
-    summaryEl.innerHTML=[
-      {val:numEntries,lbl:'Equipos registrados'},
-      {val:total,lbl:'Apariciones totales'},
-      {val:sorted.length,lbl:'Pokémon únicos'},
-      {val:topmonCurrentWeek==='all'?'1 – 2':('Week '+topmonCurrentWeek),lbl:'Semana'}
+    summaryEl.innerHTML = [
+      {val:numEntries, lbl:'Registros'},
+      {val:total,      lbl:'Apariciones'},
+      {val:sorted.length, lbl:'Pokémon únicos'},
+      {val:topmonCurrentWeek==='all'?'All':('W'+topmonCurrentWeek), lbl:'Semana'}
     ].map(function(s){
-      return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';
+      return '<div class="stat-card"><div class="stat-val" style="font-size:18px">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';
     }).join('');
   }
 
-  // Top 10 grid — styled like reference image
-  var top10=sorted.slice(0,10);
-  var maxCount=top10[0]?top10[0].count:1;
-  var gridEl=document.getElementById('topmon-grid');
+  // Top 10 grid
+  var top10 = sorted.slice(0, 10);
+  var maxCount = top10[0] ? top10[0].count : 1;
+  var gridEl = document.getElementById('topmon-grid');
   if(gridEl){
-    gridEl.innerHTML=top10.map(function(entry,i){
-      var rankColor=topmonRankColor(i);
-      var rankLabel=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
-      var barW=Math.round(entry.count/maxCount*100);
-      return '<div class="topmon-card">'+
-        '<div class="topmon-rank" style="color:'+rankColor+'">'+rankLabel+'</div>'+
-        topmonSpriteImg(entry.name,68,'topmon-sprite')+
-        '<div class="topmon-name">'+entry.name+'</div>'+
-        '<div class="topmon-count">'+entry.count+'</div>'+
-        '<div class="topmon-pct">'+entry.pct.toFixed(2)+'%</div>'+
-        '<div class="topmon-bar-wrap"><div class="topmon-bar" style="width:'+barW+'%"></div></div>'+
+    var gridHtml = '';
+    for(var i = 0; i < top10.length; i++){
+      var entry = top10[i];
+      var rankColor = topmonRankColor(i);
+      var rankLabel = i===0?'🥇':i===1?'🥈':i===2?'🥉':((i+1)+'°');
+      var barW = Math.round(entry.count / maxCount * 100);
+      gridHtml += '<div class="topmon-card">' +
+        '<div class="topmon-rank" style="color:'+rankColor+'">'+rankLabel+'</div>' +
+        topmonMakeSprite(entry.name, 68, false) +
+        '<div class="topmon-name">'+entry.name+'</div>' +
+        '<div class="topmon-count">'+entry.count+'</div>' +
+        '<div class="topmon-pct">'+entry.pct.toFixed(1)+'%</div>' +
+        '<div class="topmon-bar-wrap"><div class="topmon-bar" style="width:'+barW+'%"></div></div>' +
         '</div>';
-    }).join('');
+    }
+    gridEl.innerHTML = gridHtml;
   }
 
   // Full ranking list
-  var listEl=document.getElementById('topmon-full-list');
+  var listEl = document.getElementById('topmon-full-list');
   if(listEl){
-    listEl.innerHTML=sorted.map(function(entry,i){
-      var rankColor=topmonRankColor(i);
-      var barW=total>0?Math.round(entry.count/sorted[0].count*100):0;
-      return '<div class="topmon-row">'+
-        '<span class="topmon-row-rank" style="color:'+rankColor+'">'+(i+1)+'</span>'+
-        topmonSpriteImg(entry.name,34,'topmon-row-sprite')+
-        '<span class="topmon-row-name" style="color:'+(i<3?rankColor:'var(--text)')+'">'+entry.name+'</span>'+
-        '<div class="topmon-row-bar-wrap"><div class="topmon-row-bar" style="width:'+barW+'%"></div></div>'+
-        '<span class="topmon-row-count">'+entry.count+'</span>'+
-        '<span class="topmon-row-pct">'+entry.pct.toFixed(1)+'%</span>'+
+    var listHtml = '';
+    var maxC = sorted[0] ? sorted[0].count : 1;
+    for(var j = 0; j < sorted.length; j++){
+      var e = sorted[j];
+      var rc = topmonRankColor(j);
+      var bw = Math.round(e.count / maxC * 100);
+      listHtml += '<div class="topmon-row">' +
+        '<span class="topmon-row-rank" style="color:'+rc+'">'+(j+1)+'</span>' +
+        topmonMakeSprite(e.name, 34, true) +
+        '<span class="topmon-row-name" style="color:'+(j<3?rc:'var(--text)')+'">'+e.name+'</span>' +
+        '<div class="topmon-row-bar-wrap"><div class="topmon-row-bar" style="width:'+bw+'%"></div></div>' +
+        '<span class="topmon-row-count">'+e.count+'</span>' +
+        '<span class="topmon-row-pct">'+e.pct.toFixed(1)+'%</span>' +
         '</div>';
-    }).join('');
+    }
+    listEl.innerHTML = listHtml;
   }
+
+  // Hydrate sprites after DOM is written (no onerror inline)
+  setTimeout(topmonHydrateSprites, 0);
 }
 
 // Initialize when tab is first opened
-var topmonInitialized=false;
-var origShowTab=window.showTab;
-window.showTab=function(tab){
+var topmonInitialized = false;
+var origShowTab = window.showTab;
+window.showTab = function(tab){
   origShowTab(tab);
-  if(tab==='topmon'&&!topmonInitialized){
-    topmonInitialized=true;
+  if(tab === 'topmon'){
+    if(!topmonInitialized){ topmonInitialized = true; }
     topmonRender();
   }
 };
