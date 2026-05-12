@@ -158,6 +158,28 @@ h1,h2,h3{font-family:'Cinzel',serif}
 .btn-steal:hover{background:#8E44AD;color:#fff}
 .btn-steal:disabled{opacity:.3;cursor:not-allowed}
 .locked-notice{font-size:11px;color:#FF6B6B;background:#1A0000;border:1px solid #5A0000;border-radius:6px;padding:8px 12px;margin-bottom:10px;text-align:center}
+
+/* ── TOP POKÉMON ─────────────────────────────────────────────────── */
+.topmon-card{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative}
+.topmon-card:hover{border-color:var(--gold);transform:translateY(-2px)}
+.topmon-rank{position:absolute;top:8px;left:10px;font-family:'Cinzel',serif;font-weight:700;font-size:13px}
+.topmon-sprite{width:72px;height:72px;object-fit:contain;image-rendering:pixelated;filter:drop-shadow(0 2px 4px rgba(0,0,0,.4))}
+.topmon-sprite-placeholder{width:72px;height:72px;border-radius:50%;background:var(--surface);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:28px}
+.topmon-name{font-family:'Cinzel',serif;font-size:11px;font-weight:600;color:var(--text);text-align:center;line-height:1.3}
+.topmon-count{font-size:20px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif}
+.topmon-pct{font-size:11px;color:var(--muted)}
+.topmon-bar-wrap{width:100%;height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-top:2px}
+.topmon-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-light));transition:width .4s ease}
+.topmon-row{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:10px;transition:all .2s}
+.topmon-row:hover{border-color:var(--gold-dark)}
+.topmon-row-sprite{width:36px;height:36px;object-fit:contain;image-rendering:pixelated}
+.topmon-row-rank{font-family:'Cinzel',serif;font-weight:700;font-size:13px;min-width:22px;text-align:center}
+.topmon-row-name{font-family:'Cinzel',serif;font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topmon-row-bar-wrap{flex:2;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.topmon-row-bar{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold-dark),var(--gold-light))}
+.topmon-row-count{font-size:11px;font-weight:600;color:var(--gold-light);min-width:28px;text-align:right}
+.topmon-row-pct{font-size:10px;color:var(--muted);min-width:44px;text-align:right}
+@media(max-width:640px){#topmon-grid{grid-template-columns:repeat(2,1fr)!important}}
 </style>
 </head>
 <body>
@@ -194,6 +216,7 @@ h1,h2,h3{font-family:'Cinzel',serif}
     <div class="tab" onclick="showTab('rosters')">👥 Equipos</div>
     <div class="tab" onclick="showTab('trades')" id="tab-btn-trades">🔄 Trades <span id="trade-notif-badge" style="display:none;background:#E74C3C;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:2px">0</span></div>
     <div class="tab" onclick="showTab('enf')">⚔️ Enfrentamientos</div>
+    <div class="tab" onclick="showTab('topmon')">📊 Top Pokémon</div>
     <div class="tab admin-only" onclick="showTab('admin')" style="display:none">⚙️ Admin</div>
   </div>
   <div id="tab-auction" class="panel active">
@@ -222,6 +245,28 @@ h1,h2,h3{font-family:'Cinzel',serif}
     <div class="admin-panel">
       <div class="section-title">🔄 Trades pendientes</div>
       <div id="trade-requests-list" style="display:flex;flex-direction:column;gap:10px;margin-top:8px"></div>
+    </div>
+  </div>
+  <div id="tab-topmon" class="panel">
+    <div class="admin-panel">
+      <!-- Week filter -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;flex-wrap:wrap">
+        <span style="font-family:'Cinzel',serif;color:var(--gold-light);font-size:13px">📊 Top Pokémon</span>
+        <div style="display:flex;gap:6px;margin-left:auto">
+          <button id="topmon-btn-all" class="enf-stab active" onclick="topmonSetWeek('all')">📊 Total</button>
+          <button id="topmon-btn-1" class="enf-stab" onclick="topmonSetWeek(1)">Week 1</button>
+          <button id="topmon-btn-2" class="enf-stab" onclick="topmonSetWeek(2)">Week 2</button>
+        </div>
+      </div>
+      <!-- Stats summary -->
+      <div id="topmon-summary" style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap"></div>
+      <!-- Top 10 grid -->
+      <div id="topmon-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+      <!-- Full ranking -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-family:'Cinzel',serif;color:var(--gold-light);font-size:12px;border-bottom:1px solid var(--border);padding-bottom:4px;flex:1">Ranking completo</div>
+      </div>
+      <div id="topmon-full-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px"></div>
     </div>
   </div>
   <div id="tab-admin" class="panel">
@@ -1462,6 +1507,16 @@ function enfBuildLadder(matches){
   localState.teams.forEach(t=>{ stats[t.id]={id:t.id,name:t.name,color:t.color,logo:t.logo,pts:0,w:0,d:0,l:0,played:0,wf:0,wa:0}; });
   matches.forEach(m=>{
     if(m.homeScore===null||m.homeScore===undefined||m.awayScore===null||m.awayScore===undefined) return;
+    // Solo contar si los 6 duelos tienen score completo
+    if(!m.duels) return;
+    var allDuelsComplete=true;
+    for(var di=0;di<6;di++){
+      var d=m.duels[di];
+      if(!d||d.hScore===null||d.hScore===undefined||d.aScore===null||d.aScore===undefined){
+        allDuelsComplete=false; break;
+      }
+    }
+    if(!allDuelsComplete) return;
     const p=enfGetMatchPoints(m.homeScore,m.awayScore);
     const h=stats[m.homeTeamId], a=stats[m.awayTeamId];
     if(!h||!a) return;
@@ -1550,6 +1605,18 @@ function enfRenderMatchCard(m){
   const at=localState.teams.find(t=>String(t.id)===String(m.awayTeamId));
   if(!ht||!at) return '';
   const hasScore=m.homeScore!==null&&m.homeScore!==undefined&&m.awayScore!==null&&m.awayScore!==undefined;
+  // Verificar si todos los duelos están completos
+  var allDuelsComplete=false;
+  if(hasScore&&m.duels){
+    allDuelsComplete=true;
+    for(var di=0;di<6;di++){
+      var dd=m.duels[di];
+      if(!dd||dd.hScore===null||dd.hScore===undefined||dd.aScore===null||dd.aScore===undefined){
+        allDuelsComplete=false; break;
+      }
+    }
+  }
+  const isPartial=hasScore&&!allDuelsComplete;
   const pts=hasScore?enfGetMatchPoints(m.homeScore,m.awayScore):null;
   const hLineup=enfGetLineup(m.homeTeamId,m.jornadaId);
   const aLineup=enfGetLineup(m.awayTeamId,m.jornadaId);
@@ -1562,13 +1629,13 @@ function enfRenderMatchCard(m){
     }).join('');
   }
   var hBadge='', aBadge='';
-  if(pts){
+  if(pts&&allDuelsComplete){
     hBadge=pts.home===3?'<span style="color:#27AE60;font-size:10px">✅ +3pts</span>':pts.home===1?'<span style="color:var(--gold);font-size:10px">🤝 +1pt</span>':'<span style="color:#C0392B;font-size:10px">❌ 0pts</span>';
     aBadge=pts.away===3?'<span style="color:#27AE60;font-size:10px">✅ +3pts</span>':pts.away===1?'<span style="color:var(--gold);font-size:10px">🤝 +1pt</span>':'<span style="color:#C0392B;font-size:10px">❌ 0pts</span>';
   }
   // Build duel breakdown using admin-assigned matchups
   var duelHtml='';
-  if(hasScore&&m.duels&&m.matchups){
+  if((hasScore||isPartial)&&m.duels&&m.matchups){
     duelHtml='<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:9px;width:100%">';
     for(var di=0;di<6;di++){
       var mu=m.matchups[di]||{};
@@ -1591,13 +1658,16 @@ function enfRenderMatchCard(m){
     duelHtml+='</div>';
   }
 
-  return '<div class="match-card-enf" style="'+(hasScore?'border-color:'+ht.color+'55':'')+'">'+
+  return '<div class="match-card-enf" style="'+(allDuelsComplete?'border-color:'+ht.color+'55':isPartial?'border-color:#F39C1255':'')+'">'+
     '<div class="match-team-enf">'+enfTeamLogoHtml(ht,34)+
     '<div style="font-size:11px;font-family:\'Cinzel\',serif;color:'+ht.color+';margin-top:4px">'+ht.name+'</div>'+
     hBadge+'<div style="margin-top:4px">'+lineupStr(hLineup,ht)+'</div></div>'+
-    '<div style="text-align:center">'+(hasScore?
+    '<div style="text-align:center">'+(allDuelsComplete?
       '<div style="font-size:22px;font-weight:700;color:var(--gold-light);font-family:\'Cinzel\',serif">'+m.homeScore+' \u2013 '+m.awayScore+'</div>':
-      '<div style="color:var(--muted);font-size:13px">vs</div><div style="font-size:10px;color:var(--muted)">Por jugar</div>')+
+      isPartial?
+        '<div style="font-size:16px;font-weight:700;color:#F39C12;font-family:\'Cinzel\',serif">'+m.homeScore+' \u2013 '+m.awayScore+'</div>'+
+        '<div style="font-size:9px;color:#F39C12;margin-top:2px">⏳ En progreso</div>':
+        '<div style="color:var(--muted);font-size:13px">vs</div><div style="font-size:10px;color:var(--muted)">Por jugar</div>')+
     ((!isSpectator&&(isAdmin||(getUserTeam()&&(String(getUserTeam().id)===String(m.homeTeamId)||String(getUserTeam().id)===String(m.awayTeamId)))))?'<div style="margin-top:6px"><button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊 '+(hasScore?'Editar':'Anotar')+'</button></div>':'')+
     duelHtml+
     '</div>'+
@@ -1700,7 +1770,8 @@ function enfRenderLadder(){
     '</tbody></table>'+
     '<div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.8">'+
     '🏆 Victoria (más wins): <strong style="color:var(--gold)">3 pts</strong> · 🤝 Empate 3-3: <strong style="color:var(--gold)">1 pt</strong> · ❌ Derrota: <strong style="color:var(--gold)">0 pts</strong><br>'+
-    'Desempate 1: Wins individuales acumulados · Desempate final Top4: ⚠️ <strong style="color:#E74C3C">3v3</strong>'+
+    'Desempate 1: Wins individuales acumulados · Desempate final Top4: ⚠️ <strong style="color:#E74C3C">3v3</strong><br>'+
+    '<span style="color:#F39C12">⏳ Los partidos solo cuentan en el ladder cuando los 6 duelos tienen score anotado.</span>'+
     '</div></div>';
 }
 window.enfSelectLadder=function(id){ enfActiveLadder=id; enfRenderLadder(); };
@@ -1723,9 +1794,12 @@ function enfRenderAdmin(){
         const ht=localState.teams.find(function(t){return String(t.id)===String(m.homeTeamId)});
         const at=localState.teams.find(function(t){return String(t.id)===String(m.awayTeamId)});
         const hasScore=m.homeScore!==null&&m.homeScore!==undefined;
+        var admAllDuels=false;
+        if(hasScore&&m.duels){admAllDuels=true;for(var dii=0;dii<6;dii++){var dd2=m.duels[dii];if(!dd2||dd2.hScore===null||dd2.hScore===undefined){admAllDuels=false;break;}}}
+        var scoreLabel=hasScore?(admAllDuels?'<span style="color:var(--gold-light)">'+m.homeScore+' \u2013 '+m.awayScore+'</span>':'<span style="color:#F39C12">'+m.homeScore+' \u2013 '+m.awayScore+' ⏳</span>'):'<span style="color:var(--muted)">vs</span>';
         return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">'+
           '<span style="color:'+(ht?ht.color:'#888')+'">'+(ht?ht.name:'?')+'</span>'+
-          '<span style="color:var(--gold-light)">'+(hasScore?m.homeScore+' \u2013 '+m.awayScore:'vs')+'</span>'+
+          scoreLabel+
           '<span style="color:'+(at?at.color:'#888')+'">'+(at?at.name:'?')+'</span>'+
           '<div style="display:flex;gap:4px">'+
           '<button class="btn-secondary" style="font-size:10px;padding:3px 8px" onclick="enfOpenScore(\''+m.id+'\')">📊</button>'+
@@ -1814,11 +1888,34 @@ window.enfOpenScore=function(matchId){
 
   if(!matchupDraft[matchId]){
     matchupDraft[matchId]={};
+    var hLineupForDraft=enfGetLineup(m.homeTeamId,m.jornadaId);
+    var aLineupForDraft=enfGetLineup(m.awayTeamId,m.jornadaId);
     for(var i=0;i<6;i++){
-      matchupDraft[matchId][i]={
-        hPid:(m.matchups&&m.matchups[i]&&m.matchups[i].hPid!=null)?String(m.matchups[i].hPid):null,
-        aPid:(m.matchups&&m.matchups[i]&&m.matchups[i].aPid!=null)?String(m.matchups[i].aPid):null
-      };
+      // If already saved in Firebase, use that
+      var savedHPid=(m.matchups&&m.matchups[i]&&m.matchups[i].hPid!=null)?String(m.matchups[i].hPid):null;
+      var savedAPid=(m.matchups&&m.matchups[i]&&m.matchups[i].aPid!=null)?String(m.matchups[i].aPid):null;
+      // If no saved matchup for this slot, auto-assign from lineup order
+      if(!savedHPid&&hLineupForDraft&&hLineupForDraft[i]!=null){
+        savedHPid=String(hLineupForDraft[i]);
+      }
+      if(!savedAPid&&aLineupForDraft&&aLineupForDraft[i]!=null){
+        savedAPid=String(aLineupForDraft[i]);
+      }
+      matchupDraft[matchId][i]={hPid:savedHPid,aPid:savedAPid};
+    }
+  } else {
+    // Already have a draft — but if admin clears and re-opens, respect saved matchups
+    // Only auto-fill slots that have no hPid/aPid at all
+    var hLineupForDraft=enfGetLineup(m.homeTeamId,m.jornadaId);
+    var aLineupForDraft=enfGetLineup(m.awayTeamId,m.jornadaId);
+    for(var i=0;i<6;i++){
+      if(!matchupDraft[matchId][i]) matchupDraft[matchId][i]={hPid:null,aPid:null};
+      if(!matchupDraft[matchId][i].hPid&&hLineupForDraft&&hLineupForDraft[i]!=null){
+        matchupDraft[matchId][i].hPid=String(hLineupForDraft[i]);
+      }
+      if(!matchupDraft[matchId][i].aPid&&aLineupForDraft&&aLineupForDraft[i]!=null){
+        matchupDraft[matchId][i].aPid=String(aLineupForDraft[i]);
+      }
     }
   }
   if(!duelResults[matchId]){
@@ -2216,6 +2313,260 @@ window.enfShowFullRanking=function(type){
   var thead='<tr><th>#</th>'+cols.map(function(c){return '<th>'+c.label+'</th>';}).join('')+'</tr>';
   document.getElementById('enf-modal-ranking-table').innerHTML='<thead>'+thead+'</thead><tbody>'+tbody+'</tbody>';
   modal.style.display='flex';
+};
+
+// ══════════════════════════════════════════════════════════════
+// TOP POKÉMON MODULE
+// ══════════════════════════════════════════════════════════════
+
+// ── Normalization map: aliases → canonical name
+var TOPMON_NORM = {
+  'Basculegion-Male':'Basculegion','Basculegion M':'Basculegion',
+  'Basculegion-male':'Basculegion','basculegion m':'Basculegion',
+  'Mega Charizard Y':'Charizard Mega Y','Charizard-Y':'Charizard Mega Y',
+  'Charizard Y':'Charizard Mega Y','Charizard Mega Y':'Charizard Mega Y',
+  'Charizard Mega y':'Charizard Mega Y',
+  'Aerodactyl Mega':'Mega Aerodactyl','Mega aerodactyl':'Mega Aerodactyl',
+  'Kommo-O':'Kommo-o','kommo-o':'Kommo-o',
+  'Ninetales-A':'Ninetales-Alola','Ninetales Alola':'Ninetales-Alola','Ninetales-alola':'Ninetales-Alola',
+  'Floette-Eternal':'Floette Eternal','Floette eternal':'Floette Eternal',
+  'Kangaskhan Mega':'Mega Kangaskhan','kangaskhan mega':'Mega Kangaskhan',
+  'Kingambit Mega':'Kingambit',
+  'Mega Scovillain':'Scovillain',
+  'Mega Gardevoir':'Gardevoir Mega','Gardevoir Mega':'Gardevoir Mega',
+  'Basculegion M':'Basculegion',
+};
+
+// ── Sprite filename lookup (canonical name → sprite file base)
+var TOPMON_SPRITE = {
+  'Basculegion':'basculegion_male',
+  'Charizard Mega Y':'charizard_mega_y',
+  'Mega Aerodactyl':'aerodactyl_mega',
+  'Mega Kangaskhan':'kangaskhan_mega',
+  'Mega Venusaur':'venusaur_mega',
+  'Ninetales-Alola':'ninetales_alola',
+  'Floette Eternal':'floette_eternal',
+  'Kommo-o':'kommo-o',
+  'Gardevoir Mega':'gardevoir_mega',
+  'Typhlosion Hisui':'typhlosion_hisui',
+  'Mega Garchomp':'garchomp_mega',
+  'Mega Gengar':'gengar_mega',
+  'Mega Froslass':'froslass_mega',
+  'Mega Tyranitar':'tyranitar_mega',
+  'Mega Floette':'floette',
+  'Rotom-W':'rotom_wash',
+  'Sinitscha':'sinistcha',
+  'Scovillain':'scovillain',
+  'Charizard':'charizard',
+  'Aerodactyl':'aerodactyl',
+  'Kingambit':'kingambit',
+  'Sneasler':'sneasler',
+  'Garchomp':'garchomp',
+  'Incineroar':'incineroar',
+  'Farigiraf':'farigiraf',
+  'Torkoal':'torkoal',
+  'Sylveon':'sylveon',
+  'Pelipper':'pelipper',
+  'Dragonite':'dragonite',
+  'Archaludon':'archaludon',
+  'Gardevoir':'gardevoir',
+  'Talonflame':'talonflame',
+  'Hatterene':'hatterene',
+  'Maushold':'maushold',
+  'Tyranitar':'tyranitar',
+  'Venusaur':'venusaur',
+  'Gengar':'gengar',
+  'Excadrill':'excadrill',
+  'Corviknight':'corviknight',
+  'Whimsicott':'whimsicott',
+  'Floette':'floette',
+  'Arcanine':'arcanine',
+  'Rotom':'rotom',
+  'Kangaskhan':'kangaskhan',
+  'Sableye':'sableye',
+  'Scizor':'scizor',
+  'Drampa':'drampa',
+  'Aegislash':'aegislash_blade',
+  'Blastoise':'blastoise',
+  'Primarina':'primarina',
+  'Starmie':'starmie',
+  'Mimikyu':'mimikyu',
+  'Palafin':'palafin',
+  'Hydreigon':'hydreigon',
+  'Ariados':'ariados',
+  'Ninetales':'ninetales',
+};
+
+// ── Raw match data embedded from Excel (updated manually)
+// Structure: [{week:1, pokemons:['Kingambit','Basculegion',...6 slots]}, ...]
+// We embed the data at build time from the Excel
+var TOPMON_DATA = [
+  {week:1,player:'William Chochoca',pokemons:['Aerodactyl','Kommo-o','Kingambit','Scovillain','Sneasler','Basculegion']},
+  {week:1,player:'Manuel Espiritu',pokemons:['Arcanine','Gardevoir','Tyranitar','Rotom','Garchomp','Corviknight']},
+  {week:1,player:'Sergio Aguirre',pokemons:['Mega Kangaskhan','Farigiraf','Basculegion','Torkoal','Kingambit','Sylveon']},
+  {week:1,player:'Bryan Changa',pokemons:['Charizard Mega Y','Floette Mega','Aerodactyl','Garchomp','Kingambit','Basculegion']},
+  {week:1,player:'Gabriel',pokemons:['Mega Venusaur','Archaludon','Pelipper','Basculegion','Sableye','Kingambit']},
+  {week:1,player:'Jesus Pinto',pokemons:['Aerodactyl Mega','Scovillain','Kommo-o','Sneasler','Kingambit','Sylveon']},
+  {week:1,player:'Rainer',pokemons:['Pelipper','Basculegion','Dragonite','Kingambit','Sneasler','Archaludon']},
+  {week:1,player:'Gyisus',pokemons:['Venusaur','Scizor','Pelipper','Basculegion','Archaludon','Incineroar']},
+  {week:1,player:'Luis Alonso Coello',pokemons:['Gardevoir','Garchomp','Talonflame','Basculegion','Kingambit','Maushold']},
+  {week:1,player:'Rodrigo Rodriguez',pokemons:['Incineroar','Farigiraf','Charizard','Drampa','Torkoal','Hatterene']},
+  {week:2,player:'Giorgio Falconi',pokemons:['Talonflame','Garchomp','Sneasler','Basculegion','Kingambit','Floette']},
+  {week:2,player:'Gonzalo Padilla',pokemons:['Mega Gardevoir','Sneasler','Pelipper','Incineroar','Basculegion','Kingambit']},
+  {week:2,player:'Italo',pokemons:['Whimsicott','Mega Venusaur','Charizard Mega Y','Garchomp','Basculegion M','Kingambit']},
+  {week:2,player:'Juanjo',pokemons:['Mega Aerodactyl','Mega Scovillain','Sneasler','Basculegion M','Kingambit','Kommo-O']},
+  {week:2,player:'Renzo',pokemons:['Floette','Aerodactyl','Sneasler','Incineroar','Garchomp','Basculegion']},
+  {week:2,player:'Jr',pokemons:['Gengar','Rotom-W','Aegislash','Ninetales-A','Garchomp','Incineroar']},
+  {week:2,player:'Hanns',pokemons:['Mega Kangaskhan','Torkoal','Farigiraf','Hatterene','Kingambit','Venusaur']},
+  {week:2,player:'Jesus',pokemons:['Charizard Mega Y','Mega Froslass','Aerodactyl','Basculegion','Kingambit','Dragonite']},
+  {week:2,player:'Cristian Palante',pokemons:['Charizard','Kingambit','Sneasler','Garchomp','Basculegion','Whimsicott']},
+  {week:2,player:'André Távara',pokemons:['Kingambit','Ninetales-Alola','Gengar','Dragonite','Incineroar','Sneasler']},
+  {week:2,player:'Juan Silva',pokemons:['Kangaskhan','Farigiraf','Torkoal','Basculegion','Kingambit','Sylveon']},
+  {week:2,player:'Luis Allasi',pokemons:['Ninetales Alola','Sneasler','Gengar','Kingambit','Incineroar','Dragonite']},
+  {week:2,player:'Roberto Pozo',pokemons:['Farigiraf','Torkoal','Sylveon','Kingambit','Basculegion M','Mega Kangaskhan']},
+  {week:2,player:'Benjamin Ruiz',pokemons:['Charizard Mega Y','Sneasler','Basculegion M','Incineroar','Venusaur','Garchomp']},
+  {week:2,player:'Ernesto Serpa',pokemons:['Floette-Eternal','Incineroar','Camerupt','Sinitscha','Maushold','Mimikyu']},
+  {week:2,player:'Carlos Verastegui',pokemons:['Mega Charizard Y','Floette-Eternal','Kingambit','Basculegion-Male','Aerodactyl','Garchomp']},
+  {week:2,player:'Fito Pezán',pokemons:['Aerodactyl','Floette-Eternal','Garchomp','Basculegion','Sneasler','Kingambit']},
+  {week:2,player:'Héctor Acuña',pokemons:['Charizard-Y','Farigiraf','Aerodactyl','Sylveon','Basculegion','Garchomp']},
+  {week:2,player:'Rodrigo Montoya',pokemons:['Tyranitar','Excadrill','Sneasler','Scovillain','Corviknight','Basculegion-Male']},
+  {week:2,player:'Bryan More',pokemons:['Tyranitar','Excadrill','Sneasler','Incineroar','Basculegion-Male','Dragonite']},
+  {week:2,player:'Sebastian Solari',pokemons:['Charizard Y','Aerodactyl','Kingambit','Floette Eternal','Garchomp','Basculegion-Male']},
+  {week:2,player:'Glauco Valdivieso',pokemons:['Blastoise','Pelipper','Primarina','Starmie','Archaludon','Basculegion-Male']},
+  {week:2,player:'Gonzalo Barrera',pokemons:['Kingambit','Mega Aerodactyl','Mega Scovillain','Sneasler','Basculegion','Kommo-o']},
+  {week:2,player:'Gianfranco De Vettori',pokemons:['Mega Tyranitar','Mega Floette','Rotom-W','Excadrill','Incineroar','Sinitscha']},
+  {week:2,player:'Diego Ortiz',pokemons:['Typhlosion Hisui','Mega Gardevoir','Incineroar','Farigiraf','Mega Garchomp','Torkoal']},
+  {week:2,player:'Francisco Alca',pokemons:['Palafin','Pelipper','Hydreigon','Maushold','Mega Gengar','Incineroar']},
+  {week:2,player:'Poketubi',pokemons:['Aerodactyl','Mega Charizard Y','Basculegion','Garchomp','Floette-Eternal','Kingambit']},
+  {week:2,player:'Jorge Baca',pokemons:['Mega Charizard Y','Aerodactyl','Ariados','Garchomp','Sylveon','Basculegion']},
+];
+
+var topmonCurrentWeek='all';
+
+function topmonNormalize(name){
+  if(!name||name===''||name==='nan') return null;
+  name=String(name).trim();
+  return TOPMON_NORM[name]||name;
+}
+
+function topmonGetSpriteUrl(canonicalName){
+  var base=TOPMON_SPRITE[canonicalName];
+  if(!base){
+    // Auto-generate from name: lowercase, spaces→underscores, remove special chars
+    base=canonicalName.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_\-]/g,'');
+  }
+  return 'sprites_pokemon/'+base+'.png';
+}
+
+function topmonBuildStats(weekFilter){
+  var counts={};
+  var totalAppearances=0;
+  TOPMON_DATA.forEach(function(row){
+    if(weekFilter!=='all'&&row.week!==weekFilter) return;
+    var seen={};
+    row.pokemons.forEach(function(raw){
+      var name=topmonNormalize(raw);
+      if(!name||seen[name]) return;
+      seen[name]=true;
+      counts[name]=(counts[name]||0)+1;
+      totalAppearances++;
+    });
+  });
+  var sorted=Object.keys(counts).map(function(name){
+    return {name:name,count:counts[name],pct:totalAppearances>0?counts[name]/totalAppearances*100:0};
+  }).sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name)});
+  return {sorted:sorted,total:totalAppearances};
+}
+
+window.topmonSetWeek=function(week){
+  topmonCurrentWeek=week;
+  // Update button states
+  ['all',1,2].forEach(function(w){
+    var btn=document.getElementById('topmon-btn-'+w);
+    if(btn) btn.classList.toggle('active',w===week);
+  });
+  topmonRender();
+};
+
+function topmonRankColor(i){
+  return i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'var(--muted)';
+}
+
+function topmonSpriteImg(name,size,cls){
+  size=size||72; cls=cls||'topmon-sprite';
+  var url=topmonGetSpriteUrl(name);
+  var fallback='<div class="topmon-sprite-placeholder" style="width:'+size+'px;height:'+size+'px"><span style="font-size:'+(size/2.5)+'px">?</span></div>';
+  return '<img src="'+url+'" alt="'+name+'" class="'+cls+'" style="width:'+size+'px;height:'+size+'px" '+
+    'onerror="this.onerror=null;this.parentNode.innerHTML=\''+fallback.replace(/'/g,"\\'")+'\'"/>';
+}
+
+function topmonRender(){
+  var stats=topmonBuildStats(topmonCurrentWeek);
+  var sorted=stats.sorted;
+  var total=stats.total;
+  var weeks=topmonCurrentWeek==='all'?[1,2]:[topmonCurrentWeek];
+  var numEntries=TOPMON_DATA.filter(function(r){return topmonCurrentWeek==='all'||r.week===topmonCurrentWeek;}).length;
+
+  // Summary bar
+  var summaryEl=document.getElementById('topmon-summary');
+  if(summaryEl){
+    summaryEl.innerHTML=[
+      {val:numEntries,lbl:'Equipos registrados'},
+      {val:total,lbl:'Apariciones totales'},
+      {val:sorted.length,lbl:'Pokémon únicos'},
+      {val:topmonCurrentWeek==='all'?'1 – 2':('Week '+topmonCurrentWeek),lbl:'Semana'}
+    ].map(function(s){
+      return '<div class="stat-card"><div class="stat-val">'+s.val+'</div><div class="stat-lbl">'+s.lbl+'</div></div>';
+    }).join('');
+  }
+
+  // Top 10 grid — styled like reference image
+  var top10=sorted.slice(0,10);
+  var maxCount=top10[0]?top10[0].count:1;
+  var gridEl=document.getElementById('topmon-grid');
+  if(gridEl){
+    gridEl.innerHTML=top10.map(function(entry,i){
+      var rankColor=topmonRankColor(i);
+      var rankLabel=i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)+'.';
+      var barW=Math.round(entry.count/maxCount*100);
+      return '<div class="topmon-card">'+
+        '<div class="topmon-rank" style="color:'+rankColor+'">'+rankLabel+'</div>'+
+        topmonSpriteImg(entry.name,68,'topmon-sprite')+
+        '<div class="topmon-name">'+entry.name+'</div>'+
+        '<div class="topmon-count">'+entry.count+'</div>'+
+        '<div class="topmon-pct">'+entry.pct.toFixed(2)+'%</div>'+
+        '<div class="topmon-bar-wrap"><div class="topmon-bar" style="width:'+barW+'%"></div></div>'+
+        '</div>';
+    }).join('');
+  }
+
+  // Full ranking list
+  var listEl=document.getElementById('topmon-full-list');
+  if(listEl){
+    listEl.innerHTML=sorted.map(function(entry,i){
+      var rankColor=topmonRankColor(i);
+      var barW=total>0?Math.round(entry.count/sorted[0].count*100):0;
+      return '<div class="topmon-row">'+
+        '<span class="topmon-row-rank" style="color:'+rankColor+'">'+(i+1)+'</span>'+
+        topmonSpriteImg(entry.name,34,'topmon-row-sprite')+
+        '<span class="topmon-row-name" style="color:'+(i<3?rankColor:'var(--text)')+'">'+entry.name+'</span>'+
+        '<div class="topmon-row-bar-wrap"><div class="topmon-row-bar" style="width:'+barW+'%"></div></div>'+
+        '<span class="topmon-row-count">'+entry.count+'</span>'+
+        '<span class="topmon-row-pct">'+entry.pct.toFixed(1)+'%</span>'+
+        '</div>';
+    }).join('');
+  }
+}
+
+// Initialize when tab is first opened
+var topmonInitialized=false;
+var origShowTab=window.showTab;
+window.showTab=function(tab){
+  origShowTab(tab);
+  if(tab==='topmon'&&!topmonInitialized){
+    topmonInitialized=true;
+    topmonRender();
+  }
 };
 
 </script>
