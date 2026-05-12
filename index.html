@@ -2461,30 +2461,31 @@ function topmonGetSpriteUrl(canonicalName){
 
 function topmonBuildStats(weekFilter){
   var counts={};
-  var totalAppearances=0;
+  var totalTeams=0;
   TOPMON_DATA.forEach(function(row){
-    if(weekFilter!=='all'&&row.week!==weekFilter) return;
+    if(weekFilter!=='all'&&Number(row.week)!==Number(weekFilter)) return;
+    totalTeams++;
     var seen={};
     row.pokemons.forEach(function(raw){
       var name=topmonNormalize(raw);
       if(!name||seen[name]) return;
       seen[name]=true;
       counts[name]=(counts[name]||0)+1;
-      totalAppearances++;
     });
   });
   var sorted=Object.keys(counts).map(function(name){
-    return {name:name,count:counts[name],pct:totalAppearances>0?counts[name]/totalAppearances*100:0};
+    return {name:name,count:counts[name],pct:totalTeams>0?counts[name]/totalTeams*100:0};
   }).sort(function(a,b){return b.count-a.count||a.name.localeCompare(b.name)});
-  return {sorted:sorted,total:totalAppearances};
+  return {sorted:sorted,total:totalTeams};
 }
 
 window.topmonSetWeek=function(week){
-  topmonCurrentWeek=week;
+  // Normalize: keep 'all' as string, convert numeric weeks to Number
+  topmonCurrentWeek = (week === 'all') ? 'all' : Number(week);
   // Update button states
   ['all',1,2].forEach(function(w){
     var btn=document.getElementById('topmon-btn-'+w);
-    if(btn) btn.classList.toggle('active',w===week);
+    if(btn) btn.classList.toggle('active', String(w)===String(topmonCurrentWeek));
   });
   topmonRender();
 };
@@ -2532,7 +2533,7 @@ function topmonRender(){
   if(summaryEl){
     summaryEl.innerHTML = [
       {val:numEntries, lbl:'Registros'},
-      {val:total,      lbl:'Apariciones'},
+      {val:total,      lbl:'Equipos'},
       {val:sorted.length, lbl:'Pokémon únicos'},
       {val:topmonCurrentWeek==='all'?'All':('W'+topmonCurrentWeek), lbl:'Semana'}
     ].map(function(s){
