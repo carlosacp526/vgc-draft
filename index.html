@@ -707,7 +707,7 @@ function renderTeamsMini(){
         <div class="team-mini-budget">${t.budget.toLocaleString()}</div>
       </div>
       <div class="team-mini-bar"><div class="team-mini-fill" style="width:${pct}%;background:${t.color}"></div></div>
-      <div class="team-mini-players">${drafted}/6 drafteados · ${6-drafted} libres</div>
+      <div class="team-mini-players">${drafted}/7 drafteados · ${7-drafted} libres</div>
     </div>`;
   }).join('');
 }
@@ -967,7 +967,7 @@ function renderRosterSteals(el, teams, userTeam){
   el.innerHTML = teams.map(t=>{
     const fixed=(t.players||[]).filter(p=>p.fixed);
     const drafted=(t.players||[]).filter(p=>!p.fixed);
-    const slots=Math.max(0,6-drafted.length);
+    const slots=Math.max(0,7-drafted.length);
     const isMyTeam = userTeam && t.id===userTeam.id;
     return `<div class="roster-card" style="border-top:3px solid ${t.color}">
       <div class="roster-card-header">
@@ -1160,7 +1160,7 @@ window.openMoveModal=function(){
   function teamOpts(skipPlayerId){
     return localState.teams.map(t=>{
       const drafted=(t.players||[]).filter(p=>!p.fixed).length;
-      const slots=Math.max(0,6-drafted);
+      const slots=Math.max(0,7-drafted);
       return `<option value="${t.id}">${t.name} — ${slots} slot${slots!==1?'s':''} libre${slots!==1?'s':''}</option>`;
     }).join('');
   }
@@ -1189,7 +1189,7 @@ window.saveMove=async function(){
   if(isFromATeam&&fromTeam&&fromTeam.id===toTeam.id){alert('El jugador ya está en ese equipo.');return}
   // Check slots in target team
   const toDrafted=(toTeam.players||[]).filter(p=>!p.fixed);
-  if(toDrafted.length>=6){alert(toTeam.name+' ya tiene 6 jugadores drafteados. No hay slots disponibles.');return}
+  if(toDrafted.length>=7){alert(toTeam.name+' ya tiene 7 jugadores drafteados. No hay slots disponibles.');return}
   // Remove from old team if sold
   if(isFromATeam&&fromTeam){
     const fromNewPlayers=(fromTeam.players||[]).filter(p=>String(p.id)!==String(playerId));
