@@ -1498,6 +1498,9 @@ onValue(ref(db,'enfrentamientos/lineups'), snap=>{
 function enfSortedJornadas(){ return Object.values(enfState.jornadas).sort((a,b)=>a.num-b.num); }
 function enfGetMatchesForJornada(jId){ return Object.values(enfState.matches).filter(m=>m.jornadaId===jId); }
 function enfGetLineup(teamId,jornadaId){ return enfState.lineups?.[jornadaId]?.[teamId]||[]; }
+function enfGetJornadaFase(jornadaId){ const j=enfState.jornadas[jornadaId]; return j?j.fase||'normal':'normal'; }
+function enfGetDuelCount(jornadaId){ const f=enfGetJornadaFase(jornadaId); return (f==='semifinal'||f==='final')?7:6; }
+function enfGetLineupSize(jornadaId){ return enfGetDuelCount(jornadaId); }
 
 function enfGetMatchPoints(h,a){
   if(h===null||h===undefined||a===null||a===undefined) return {home:null,away:null};
@@ -1514,8 +1517,9 @@ function enfBuildLadder(matches){
     if(m.homeScore===null||m.homeScore===undefined||m.awayScore===null||m.awayScore===undefined) return;
     // Solo contar si los 6 duelos tienen score completo
     if(!m.duels) return;
+    var duelCount=enfGetDuelCount(m.jornadaId);
     var allDuelsComplete=true;
-    for(var di=0;di<6;di++){
+    for(var di=0;di<duelCount;di++){
       var d=m.duels[di];
       if(!d||d.hScore===null||d.hScore===undefined||d.aScore===null||d.aScore===undefined){
         allDuelsComplete=false; break;
@@ -1581,7 +1585,12 @@ function enfRenderJornadas(){
     return;
   }
   if(!enfActiveJornada) enfActiveJornada=jornadas[0].id;
-  tabsEl.innerHTML=jornadas.map(j=>`<div class="enf-jtab ${j.id===enfActiveJornada?'active':''}" onclick="enfSelectJornada('${j.id}')">${j.name||'J'+j.num}</div>`).join('');
+  tabsEl.innerHTML=jornadas.map(j=>{
+    var faseTag='';
+    if(j.fase==='semifinal') faseTag=' <span style="font-size:9px;color:#F39C12;background:#2A1500;border:1px solid #F39C1244;border-radius:8px;padding:1px 5px">SF</span>';
+    else if(j.fase==='final') faseTag=' <span style="font-size:9px;color:#FFD700;background:#1A1200;border:1px solid #FFD70044;border-radius:8px;padding:1px 5px">FINAL</span>';
+    return `<div class="enf-jtab ${j.id===enfActiveJornada?'active':''}" onclick="enfSelectJornada('${j.id}')">${j.name||'J'+j.num}${faseTag}</div>`;
+  }).join('');
   const j=jornadas.find(x=>x.id===enfActiveJornada)||jornadas[0];
   if(!j){contentEl.innerHTML='';return}
   const matches=enfGetMatchesForJornada(j.id);
@@ -1610,11 +1619,13 @@ function enfRenderMatchCard(m){
   const at=localState.teams.find(t=>String(t.id)===String(m.awayTeamId));
   if(!ht||!at) return '';
   const hasScore=m.homeScore!==null&&m.homeScore!==undefined&&m.awayScore!==null&&m.awayScore!==undefined;
+  const duelCount=enfGetDuelCount(m.jornadaId);
+  const jornadaFase=enfGetJornadaFase(m.jornadaId);
   // Verificar si todos los duelos están completos
   var allDuelsComplete=false;
   if(hasScore&&m.duels){
     allDuelsComplete=true;
-    for(var di=0;di<6;di++){
+    for(var di=0;di<duelCount;di++){
       var dd=m.duels[di];
       if(!dd||dd.hScore===null||dd.hScore===undefined||dd.aScore===null||dd.aScore===undefined){
         allDuelsComplete=false; break;
@@ -1641,8 +1652,9 @@ function enfRenderMatchCard(m){
   // Build duel breakdown using admin-assigned matchups
   var duelHtml='';
   if((hasScore||isPartial)&&m.duels&&m.matchups){
+    var faseBadgeCard=jornadaFase==='semifinal'?'<span style="font-size:9px;color:#F39C12;background:#2A1500;border:1px solid #F39C1244;border-radius:8px;padding:1px 5px;margin-left:4px">SF</span>':jornadaFase==='final'?'<span style="font-size:9px;color:#FFD700;background:#1A1200;border:1px solid #FFD70044;border-radius:8px;padding:1px 5px;margin-left:4px">FINAL</span>':'';
     duelHtml='<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-size:9px;width:100%">';
-    for(var di=0;di<6;di++){
+    for(var di=0;di<duelCount;di++){
       var mu=m.matchups[di]||{};
       var hPn=mu.hPid?enfGetPlayerName(mu.hPid,ht):'J'+(di+1);
       var aPn=mu.aPid?enfGetPlayerName(mu.aPid,at):'J'+(di+1);
@@ -1696,15 +1708,23 @@ function enfRenderLineup(){
   const j=jornadas.find(x=>x.id===enfLineupEditJornada)||jornadas[0];
   const allPlayers=myTeam.players||[];
   const savedLineup=enfGetLineup(myTeam.id,enfLineupEditJornada);
+  const lineupSize=enfGetLineupSize(enfLineupEditJornada);
   if(!enfLineupDraft[enfLineupEditJornada]){
     enfLineupDraft[enfLineupEditJornada]=savedLineup.reduce(function(acc,pid){acc[String(pid)]=true;return acc},{});
   }
   const sel=enfLineupDraft[enfLineupEditJornada]||{};
   const selCount=Object.values(sel).filter(Boolean).length;
-  const jtabs=jornadas.map(function(jj){return '<div class="enf-jtab '+(jj.id===enfLineupEditJornada?'active':'')+'" onclick="enfSelectLineupJornada(\''+jj.id+'\')">'+(jj.name||'J'+jj.num)+'</div>';}).join('');
+  const jtabs=jornadas.map(function(jj){
+    var faseTag='';
+    if(jj.fase==='semifinal') faseTag=' <span style="font-size:9px;color:#F39C12;background:#2A1500;border:1px solid #F39C1244;border-radius:8px;padding:1px 5px">SF</span>';
+    else if(jj.fase==='final') faseTag=' <span style="font-size:9px;color:#FFD700;background:#1A1200;border:1px solid #FFD70044;border-radius:8px;padding:1px 5px">FINAL</span>';
+    return '<div class="enf-jtab '+(jj.id===enfLineupEditJornada?'active':'')+'" onclick="enfSelectLineupJornada(\''+jj.id+'\')">'+(jj.name||'J'+jj.num)+faseTag+'</div>';
+  }).join('');
+  const fase=enfGetJornadaFase(enfLineupEditJornada);
+  const faseBadge=fase==='semifinal'?'<span style="font-size:10px;color:#F39C12;background:#2A1500;border:1px solid #F39C1244;border-radius:10px;padding:2px 8px;margin-left:8px">🥈 SEMIFINAL</span>':fase==='final'?'<span style="font-size:10px;color:#FFD700;background:#1A1200;border:1px solid #FFD70044;border-radius:10px;padding:2px 8px;margin-left:8px">🏆 FINAL</span>':'';
   el.innerHTML='<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">'+jtabs+'</div>'+
     '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px">'+
-    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Selecciona <strong style="color:var(--gold-light)">6 jugadores</strong> para '+(j.name||'Jornada '+j.num)+' <span style="color:'+(selCount===6?'#27AE60':selCount>6?'#E74C3C':'var(--gold)')+';">('+selCount+'/6)</span></div>'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Selecciona <strong style="color:var(--gold-light)">'+lineupSize+' jugadores</strong> para '+(j.name||'Jornada '+j.num)+faseBadge+' <span style="color:'+(selCount===lineupSize?'#27AE60':selCount>lineupSize?'#E74C3C':'var(--gold)')+';">('+selCount+'/'+lineupSize+')</span></div>'+
     '<div class="lineup-grid-enf">'+
     allPlayers.map(function(p){
       return '<div class="lineup-player-enf '+(sel[String(p.id)]?'selected':'')+'" onclick="enfTogglePlayer(\''+p.id+'\',\''+enfLineupEditJornada+'\')">'+
@@ -1714,7 +1734,7 @@ function enfRenderLineup(){
         '</div>';
     }).join('')+
     '</div></div>';
-  if(bar){bar.style.display='flex';document.getElementById('enf-lineup-count').textContent=selCount===6?'✅ Lineup completo (6/6)':selCount+'/6 jugadores';}
+  if(bar){bar.style.display='flex';document.getElementById('enf-lineup-count').textContent=selCount===lineupSize?'✅ Lineup completo ('+lineupSize+'/'+lineupSize+')':selCount+'/'+lineupSize+' jugadores';}
 }
 
 window.enfSelectLineupJornada=function(id){ enfLineupEditJornada=id; if(!enfLineupDraft[id]) enfLineupDraft[id]={}; enfRenderLineup(); };
@@ -1723,7 +1743,8 @@ window.enfTogglePlayer=function(pid,jid){
   const sel=enfLineupDraft[jid];
   const cur=!!sel[String(pid)];
   const count=Object.values(sel).filter(Boolean).length;
-  if(!cur&&count>=6){alert('Ya seleccionaste 6 jugadores. Deselecciona uno primero.');return}
+  const maxSize=enfGetLineupSize(jid);
+  if(!cur&&count>=maxSize){alert('Ya seleccionaste '+maxSize+' jugadores. Deselecciona uno primero.');return}
   sel[String(pid)]=!cur;
   enfRenderLineup();
 };
@@ -1733,7 +1754,8 @@ window.enfSaveLineup=async function(){
   if(!myTeam||!enfLineupEditJornada) return;
   const sel=enfLineupDraft[enfLineupEditJornada]||{};
   const selected=Object.keys(sel).filter(function(k){return sel[k]});
-  if(selected.length!==6){alert('Selecciona exactamente 6 jugadores.');return}
+  const lineupSize=enfGetLineupSize(enfLineupEditJornada);
+  if(selected.length!==lineupSize){alert('Selecciona exactamente '+lineupSize+' jugadores.');return}
   await set(ref(db,'enfrentamientos/lineups/'+enfLineupEditJornada+'/'+myTeam.id),selected);
   alert('Lineup guardado.');
 };
@@ -1776,7 +1798,7 @@ function enfRenderLadder(){
     '<div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.8">'+
     '🏆 Victoria (más wins): <strong style="color:var(--gold)">3 pts</strong> · 🤝 Empate 3-3: <strong style="color:var(--gold)">1 pt</strong> · ❌ Derrota: <strong style="color:var(--gold)">0 pts</strong><br>'+
     'Desempate 1: Wins individuales acumulados · Desempate final Top4: ⚠️ <strong style="color:#E74C3C">3v3</strong><br>'+
-    '<span style="color:#F39C12">⏳ Los partidos solo cuentan en el ladder cuando los 6 duelos tienen score anotado.</span>'+
+    '<span style="color:#F39C12">⏳ Los partidos solo cuentan en el ladder cuando todos los duelos tienen score anotado (6 en jornadas normales, 7 en Semifinal/Final).</span>'+
     '</div></div>';
 }
 window.enfSelectLadder=function(id){ enfActiveLadder=id; enfRenderLadder(); };
@@ -1790,7 +1812,9 @@ function enfRenderAdmin(){
     const jMatches=enfGetMatchesForJornada(j.id);
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px">'+
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+
-      '<span style="font-family:\'Cinzel\',serif;color:var(--gold-light)">'+(j.name||'Jornada '+j.num)+'</span>'+
+      '<span style="font-family:\'Cinzel\',serif;color:var(--gold-light)">'+(j.name||'Jornada '+j.num)+
+      (j.fase==='semifinal'?' <span style="font-size:10px;color:#F39C12;background:#2A1500;border:1px solid #F39C1244;border-radius:10px;padding:2px 8px">🥈 SF — 7 jugadores</span>':j.fase==='final'?' <span style="font-size:10px;color:#FFD700;background:#1A1200;border:1px solid #FFD70044;border-radius:10px;padding:2px 8px">🏆 FINAL — 7 jugadores</span>':'')+
+      '</span>'+
       '<div style="display:flex;gap:6px">'+
       '<button class="btn-secondary" style="font-size:10px;padding:4px 8px" onclick="enfOpenCreateMatch(\''+j.id+'\')">+ Partido</button>'+
       '<button class="btn-secondary" style="font-size:10px;padding:4px 8px;border-color:#E74C3C;color:#E74C3C" onclick="enfDeleteJornada(\''+j.id+'\')">🗑</button>'+
@@ -1822,8 +1846,9 @@ window.enfCreateJornada=async function(){
   if(isSpectator) return;
   const num=parseInt(document.getElementById('enf-jornada-num').value)||1;
   const name=document.getElementById('enf-jornada-name').value.trim()||'Jornada '+num;
+  const fase=document.getElementById('enf-jornada-fase').value||'normal';
   const id='j'+Date.now();
-  await set(ref(db,'enfrentamientos/jornadas/'+id),{id,num,name,createdAt:new Date().toISOString()});
+  await set(ref(db,'enfrentamientos/jornadas/'+id),{id,num,name,fase,createdAt:new Date().toISOString()});
   if(!enfActiveJornada) enfActiveJornada=id;
   closeModal('enf-modal-jornada');
 };
@@ -1895,25 +1920,19 @@ window.enfOpenScore=function(matchId){
     matchupDraft[matchId]={};
     var hLineupForDraft=enfGetLineup(m.homeTeamId,m.jornadaId);
     var aLineupForDraft=enfGetLineup(m.awayTeamId,m.jornadaId);
-    for(var i=0;i<6;i++){
-      // If already saved in Firebase, use that
+    var duelCount=enfGetDuelCount(m.jornadaId);
+    for(var i=0;i<duelCount;i++){
       var savedHPid=(m.matchups&&m.matchups[i]&&m.matchups[i].hPid!=null)?String(m.matchups[i].hPid):null;
       var savedAPid=(m.matchups&&m.matchups[i]&&m.matchups[i].aPid!=null)?String(m.matchups[i].aPid):null;
-      // If no saved matchup for this slot, auto-assign from lineup order
-      if(!savedHPid&&hLineupForDraft&&hLineupForDraft[i]!=null){
-        savedHPid=String(hLineupForDraft[i]);
-      }
-      if(!savedAPid&&aLineupForDraft&&aLineupForDraft[i]!=null){
-        savedAPid=String(aLineupForDraft[i]);
-      }
+      if(!savedHPid&&hLineupForDraft&&hLineupForDraft[i]!=null){ savedHPid=String(hLineupForDraft[i]); }
+      if(!savedAPid&&aLineupForDraft&&aLineupForDraft[i]!=null){ savedAPid=String(aLineupForDraft[i]); }
       matchupDraft[matchId][i]={hPid:savedHPid,aPid:savedAPid};
     }
   } else {
-    // Already have a draft — but if admin clears and re-opens, respect saved matchups
-    // Only auto-fill slots that have no hPid/aPid at all
     var hLineupForDraft=enfGetLineup(m.homeTeamId,m.jornadaId);
     var aLineupForDraft=enfGetLineup(m.awayTeamId,m.jornadaId);
-    for(var i=0;i<6;i++){
+    var duelCount=enfGetDuelCount(m.jornadaId);
+    for(var i=0;i<duelCount;i++){
       if(!matchupDraft[matchId][i]) matchupDraft[matchId][i]={hPid:null,aPid:null};
       if(!matchupDraft[matchId][i].hPid&&hLineupForDraft&&hLineupForDraft[i]!=null){
         matchupDraft[matchId][i].hPid=String(hLineupForDraft[i]);
@@ -1925,9 +1944,9 @@ window.enfOpenScore=function(matchId){
   }
   if(!duelResults[matchId]){
     duelResults[matchId]={};
-    for(var i=0;i<6;i++){
+    var duelCount2=enfGetDuelCount(m.jornadaId);
+    for(var i=0;i<duelCount2;i++){
       var saved = m.duels&&m.duels[i];
-      // Support old format (string) and new format (object)
       if(saved&&typeof saved==='object'&&'hScore' in saved){
         duelResults[matchId][i]={hScore:saved.hScore,aScore:saved.aScore};
       } else if(saved==='home'){
@@ -1951,18 +1970,28 @@ let matchupDraft={};
 function enfRenderDuels(matchId, ht, at, hPlayers, aPlayers){
   const duels=duelResults[matchId]||{};
   const matchups=matchupDraft[matchId]||{};
+  const m2=enfState.matches[matchId];
+  const duelCount=enfGetDuelCount(m2&&m2.jornadaId);
   var hWins=0,aWins=0;
-  for(var i=0;i<6;i++){
+  for(var i=0;i<duelCount;i++){
     var d=duels[i];
     if(d&&d.hScore>d.aScore) hWins++;
     else if(d&&d.aScore>d.hScore) aWins++;
   }
   document.getElementById('enf-score-total').textContent=hWins+' – '+aWins;
 
+  // Show fase badge in modal header
+  var faseEl=document.getElementById('enf-score-fase-badge');
+  if(faseEl){
+    var fase=enfGetJornadaFase(m2&&m2.jornadaId);
+    if(fase==='semifinal') faseEl.innerHTML='<span style="font-size:10px;color:#F39C12;background:#2A1500;border:1px solid #F39C1244;border-radius:10px;padding:2px 10px;display:inline-block;margin-bottom:6px">🥈 SEMIFINAL — 7 duelos</span>';
+    else if(fase==='final') faseEl.innerHTML='<span style="font-size:10px;color:#FFD700;background:#1A1200;border:1px solid #FFD70044;border-radius:10px;padding:2px 10px;display:inline-block;margin-bottom:6px">🏆 FINAL — 7 duelos</span>';
+    else faseEl.innerHTML='';
+  }
+
   const list=document.getElementById('enf-duels-list');
   list.innerHTML='';
 
-  const m2=enfState.matches[matchId];
   const hLineupIds=enfGetLineup(m2&&m2.homeTeamId,m2&&m2.jornadaId);
   const aLineupIds=enfGetLineup(m2&&m2.awayTeamId,m2&&m2.jornadaId);
   const hLineupPlayers=hLineupIds.map(function(pid){return hPlayers.find(function(p){return String(p.id)===String(pid)});}).filter(Boolean);
@@ -1970,7 +1999,7 @@ function enfRenderDuels(matchId, ht, at, hPlayers, aPlayers){
   const hOpts='<option value="">-- Elige --</option>'+(hLineupPlayers.length?hLineupPlayers:hPlayers).map(function(p){return '<option value="'+p.id+'">'+p.name+'</option>';}).join('');
   const aOpts='<option value="">-- Elige --</option>'+(aLineupPlayers.length?aLineupPlayers:aPlayers).map(function(p){return '<option value="'+p.id+'">'+p.name+'</option>';}).join('');
 
-  for(var i=0;i<6;i++){
+  for(var i=0;i<duelCount;i++){
     var idx=i;
     var mu=matchups[i]||{hPid:null,aPid:null};
     var duel=duels[i];
@@ -2099,15 +2128,15 @@ window.enfSaveScore=async function(){
   const m=enfState.matches[enfPendingScore];
   const duels=duelResults[enfPendingScore]||{};
   const matchups=matchupDraft[enfPendingScore]||{};
+  const duelCount=enfGetDuelCount(m.jornadaId);
   var hWins=0,aWins=0;
-  for(var i=0;i<6;i++){
+  for(var i=0;i<duelCount;i++){
     var d=duels[i];
     if(d&&d.hScore>d.aScore) hWins++;
     else if(d&&d.aScore>d.hScore) aWins++;
   }
   const duelData={},matchupData={};
-  for(var i=0;i<6;i++){
-    // Store as object {hScore, aScore} for BO3
+  for(var i=0;i<duelCount;i++){
     duelData[i]=duels[i]?{hScore:duels[i].hScore,aScore:duels[i].aScore}:null;
     matchupData[i]={hPid:(matchups[i]&&matchups[i].hPid)||null,aPid:(matchups[i]&&matchups[i].aPid)||null};
   }
@@ -2151,7 +2180,8 @@ function enfBuildStats(){
 
     // Duels BO3
     if(m.duels&&m.matchups){
-      for(var i=0;i<6;i++){
+      var duelCountSt=enfGetDuelCount(m.jornadaId);
+      for(var i=0;i<duelCountSt;i++){
         var duel=m.duels[i];
         var mu=m.matchups[i]||{};
         if(!duel) continue;
@@ -2640,6 +2670,12 @@ function topmonRender(){
     <input type="number" id="enf-jornada-num" min="1" max="7" value="1" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"/></div>
     <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Nombre</label>
     <input type="text" id="enf-jornada-name" placeholder="Ej: Jornada 1 — Apertura" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif"/></div>
+    <div style="margin-bottom:8px"><label style="font-size:11px;color:var(--muted)">Tipo de fase</label>
+    <select id="enf-jornada-fase" style="width:100%;padding:8px;background:#0A0A0F;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;font-family:'Exo 2',sans-serif">
+      <option value="normal">⚔️ Jornada Normal (6 jugadores)</option>
+      <option value="semifinal">🥈 Semifinal (7 jugadores)</option>
+      <option value="final">🏆 Final (7 jugadores)</option>
+    </select></div>
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeModal('enf-modal-jornada')">Cancelar</button>
       <button class="btn-primary" onclick="enfCreateJornada()">Crear</button>
@@ -2666,6 +2702,7 @@ function topmonRender(){
 <div id="enf-modal-score" class="modal-overlay" style="display:none">
   <div class="modal" style="max-width:560px;max-height:90vh;overflow:auto">
     <h3>📊 Resultado del partido</h3>
+    <div id="enf-score-fase-badge" style="text-align:center"></div>
     <div id="enf-score-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
       <div id="enf-score-home-info" style="text-align:center;flex:1"></div>
       <div style="font-size:24px;font-weight:700;color:var(--gold-light);font-family:'Cinzel',serif;padding:0 12px" id="enf-score-total">0 – 0</div>
